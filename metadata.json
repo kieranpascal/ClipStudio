@@ -1,0 +1,8 @@
+{
+  "name": "ClipForge",
+  "description": "Autonomous short-form video clipping studio and GitOps pipeline powered by Cloudflare Pages, GitHub Actions, and Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

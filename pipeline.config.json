@@ -1,0 +1,48 @@
+{
+  "projectName": "ClipForge",
+  "scheduleCron": "0 */2 * * *",
+  "targetGames": [
+    {
+      "name": "Grand Theft Auto VI",
+      "twitchGameId": "32982_gta6",
+      "minViews": 1500,
+      "maxClipAgeHours": 6,
+      "enabled": true
+    },
+    {
+      "name": "Grand Theft Auto V",
+      "twitchGameId": "32982",
+      "minViews": 4000,
+      "maxClipAgeHours": 4,
+      "enabled": false
+    }
+  ],
+  "qaRules": {
+    "strictGameVerification": true,
+    "rejectChatBoxOverlap": true,
+    "maxExistingCrossPosts": 3,
+    "minHookEnergyScore": 75,
+    "requireStreamerCredit": true
+  },
+  "layoutDefaults": {
+    "aspectRatio": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "facecamHeightPercent": 36,
+    "maskChatRegion": true,
+    "prependPeakHook": true,
+    "hookDurationSeconds": 3,
+    "captionStyle": "kinetic-highlight"
+  },
+  "publishing": {
+    "platforms": [
+      "tiktok",
+      "instagram_reels",
+      "youtube_shorts"
+    ],
+    "maxPostsPerDay": 12,
+    "minSpacingMinutes": 90,
+    "targetDailyRevenueUsd": 100,
+    "assumedRpmUsd": 1.12
+  }
+}

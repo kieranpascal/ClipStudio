@@ -1,0 +1,75 @@
+name: ClipForge Autonomous Pipeline
+
+on:
+  schedule:
+    # Runs every 2 hours on UTC clock (override via pipeline.config.json)
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      target_game:
+        description: "Override Twitch game category (optional)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Skip external posting and upload rendered artifacts only"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  harvest-qa-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install FFmpeg & yt-dlp
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+          curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+
+      - name: Install minimal runner dependencies
+        run: npm install --no-save @google/genai
+
+      - name: Run ClipForge Autonomous Clipper
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          PUBLISH_WEBHOOK_URL: ${{ secrets.PUBLISH_WEBHOOK_URL }}
+          TARGET_GAME_OVERRIDE: ${{ inputs.target_game }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: node scripts/run-clipper.mjs
+
+      - name: Upload rendered 9:16 shorts as workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clipforge-renders-${{ github.run_number }}
+          path: |
+            renders/*.mp4
+            data/runs.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Commit updated run telemetry & deduplication ledger
+        run: |
+          git config user.name "ClipForge Bot"
+          git config user.email "clipforge-bot@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain data/)" ]]; then
+            git add data/
+            git commit -m "chore(pipeline): record run #${{ github.run_number }}"
+            git push
+          fi

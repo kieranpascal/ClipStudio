@@ -1,0 +1,19 @@
+name = "clipforge"
+compatibility_date = "2026-01-15"
+pages_build_output_dir = "dist"
+
+# Bind a Cloudflare KV namespace to persist clip queue, run logs, and config cache at the edge
+# Create with: npx wrangler kv namespace create CLIPFORGE_STATE
+# [[kv_namespaces]]
+# binding = "CLIPFORGE_STATE"
+# id = "YOUR_KV_NAMESPACE_ID"
+
+# Bind a Cloudflare R2 bucket to store rendered 9:16 vertical MP4 clips built by GitHub Actions
+# Create with: npx wrangler r2 bucket create clipforge-media
+# [[r2_buckets]]
+# binding = "CLIPFORGE_MEDIA"
+# bucket_name = "clipforge-media"
+
+[vars]
+GITHUB_BRANCH = "main"
+GITHUB_WORKFLOW_FILE = "clipforge-pipeline.yml"
