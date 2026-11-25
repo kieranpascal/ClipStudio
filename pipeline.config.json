@@ -4,16 +4,16 @@
   "targetGames": [
     {
       "name": "Grand Theft Auto VI",
-      "twitchGameId": "32982_gta6",
+      "twitchGameId": "32982",
       "minViews": 1500,
-      "maxClipAgeHours": 6,
+      "maxClipAgeHours": 4,
       "enabled": true
     },
     {
-      "name": "Grand Theft Auto V",
-      "twitchGameId": "32982",
-      "minViews": 4000,
-      "maxClipAgeHours": 4,
+      "name": "Valorant",
+      "twitchGameId": "516575",
+      "minViews": 2500,
+      "maxClipAgeHours": 6,
       "enabled": false
     }
   ],
@@ -21,28 +21,135 @@
     "strictGameVerification": true,
     "rejectChatBoxOverlap": true,
     "maxExistingCrossPosts": 3,
-    "minHookEnergyScore": 75,
-    "requireStreamerCredit": true
+    "minHookEnergyScore": 7,
+    "requireStreamerCredit": true,
+    "autoStripDmcaMusic": true
+  },
+  "audioProcessing": {
+    "targetLufs": -11,
+    "truePeakDb": -1.0,
+    "removeSilence": true,
+    "silenceThresholdDb": -38
+  },
+  "brandKit": {
+    "watermarkHandle": "@clipforge.gg",
+    "watermarkOpacity": 0.65,
+    "endCardCta": "Follow for daily GTA 6 clips"
   },
   "layoutDefaults": {
     "aspectRatio": "9:16",
     "width": 1080,
     "height": 1920,
+    "template": "split-stack",
     "facecamHeightPercent": 36,
     "maskChatRegion": true,
     "prependPeakHook": true,
-    "hookDurationSeconds": 3,
+    "hookDurationSeconds": 3.0,
     "captionStyle": "kinetic-highlight"
   },
   "publishing": {
     "platforms": [
-      "tiktok",
-      "instagram_reels",
-      "youtube_shorts"
+      "TikTok",
+      "Instagram Reels",
+      "YouTube Shorts"
     ],
-    "maxPostsPerDay": 12,
-    "minSpacingMinutes": 90,
+    "maxPostsPerDay": 10,
+    "minSpacingMinutes": 45,
+    "staggerJitterMinutes": 18,
     "targetDailyRevenueUsd": 100,
-    "assumedRpmUsd": 1.12
-  }
+    "assumedRpmUsd": 0.75
+  },
+  "channelFleet": [
+    {
+      "id": "ch_en_main",
+      "name": "Vice Clips Main (EN)",
+      "handle": "@viceclips.gg",
+      "locale": "en",
+      "platforms": ["TikTok", "Instagram Reels", "YouTube Shorts"],
+      "stage": "monetized",
+      "dailyPostCap": 6,
+      "staggerJitterMin": 15,
+      "assumedRpmUsd": 0.85
+    },
+    {
+      "id": "ch_es_latam",
+      "name": "Vice Clips LATAM (ES)",
+      "handle": "@viceclips_es",
+      "locale": "es",
+      "platforms": ["TikTok", "YouTube Shorts"],
+      "stage": "scaling",
+      "dailyPostCap": 4,
+      "staggerJitterMin": 22,
+      "assumedRpmUsd": 0.45
+    },
+    {
+      "id": "ch_pt_br",
+      "name": "Vice Clips Brasil (PT)",
+      "handle": "@viceclips_br",
+      "locale": "pt",
+      "platforms": ["TikTok", "Instagram Reels"],
+      "stage": "warmup",
+      "dailyPostCap": 2,
+      "staggerJitterMin": 30,
+      "assumedRpmUsd": 0.40
+    }
+  ],
+  "streamerPolicies": [
+    {
+      "handle": "@kadevelo",
+      "status": "allow",
+      "note": "Creator explicitly permits clip reposts with handle credit."
+    },
+    {
+      "handle": "@sarah_playz",
+      "status": "allow",
+      "note": "Partner allowlist — keep credit watermark visible."
+    },
+    {
+      "handle": "@noclips_creator",
+      "status": "opt-out",
+      "note": "Creator opted out of automated clipping — skip permanently."
+    }
+  ],
+  "aiDirector": {
+    "mode": "supervised",
+    "brandVoice": "hype-arcade",
+    "customVoicePrompt": "Write sharp, fast-paced gaming hooks under 34 characters. Never use generic clickbait; anchor every hook in the exact speed, near-miss, or physics stunt happening on screen.",
+    "autoAuditOnIngest": true,
+    "autoGenerateHooks": true,
+    "autoLocalizeLocales": ["es", "pt"],
+    "maxAutoActionsPerRun": 6
+  },
+  "brandPresets": [
+    {
+      "id": "preset_flagship",
+      "name": "Flagship Vice Split",
+      "watermarkHandle": "@viceclips.gg",
+      "watermarkOpacity": 0.65,
+      "endCardCta": "Follow for daily GTA 6 clips",
+      "captionStyle": "kinetic-highlight",
+      "template": "split-stack",
+      "targetLufs": -11
+    },
+    {
+      "id": "preset_esports",
+      "name": "Broadcast HUD Sniper",
+      "watermarkHandle": "@clipforge.pro",
+      "watermarkOpacity": 0.55,
+      "endCardCta": "Drop a follow for frame-by-frame clutches",
+      "captionStyle": "broadcast-lower",
+      "template": "hud-zoom",
+      "targetLufs": -14
+    },
+    {
+      "id": "preset_reaction",
+      "name": "Creator Reaction Vault",
+      "watermarkHandle": "@reactclips.tv",
+      "watermarkOpacity": 0.7,
+      "endCardCta": "Tag a friend who would choke this",
+      "captionStyle": "arcade-pop",
+      "template": "reaction-focus",
+      "targetLufs": -11
+    }
+  ]
 }

@@ -2,7 +2,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
@@ -21,7 +21,27 @@
   }
 }
 
-/* Subtle custom scrollbars for dark/light dashboard panels */
+/* Precision broadcast range sliders */
+input[type="range"].nle-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(148, 163, 184, 0.28);
+  outline: none;
+}
+
+input[type="range"].nle-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 14px;
+  border-radius: 1px;
+  background: #E1392B;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -32,10 +52,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.25);
-  border-radius: 3px;
+  background: rgba(100, 116, 139, 0.32);
+  border-radius: 1px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.45);
+  background: rgba(100, 116, 139, 0.54);
 }
