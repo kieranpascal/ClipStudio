@@ -13,18 +13,26 @@ interface AiCommandBarProps {
 }
 
 const QUICK_NAV: Array<{ label: string; tab: WorkspaceTab }> = [
-  { label: "Jump to Studio Dashboard (Action Queue & Telemetry)", tab: "dashboard" },
+  { label: "Jump to Studio Dashboard (Overview & Command Center)", tab: "dashboard" },
+  { label: "Jump to Research Commander (Unified Deck, TrendPulse & Sentiment)", tab: "research-hub" },
+  { label: "Jump to Opportunity & Gap Radar (Keyword Gaps, Outliers & Crawler)", tab: "opportunity-radar" },
+  { label: "Jump to Community Sentiment Analysis (Comments, Styles & News)", tab: "audience-social-intel" },
+  { label: "Jump to TrendPulse & Rivals (Live Radar & Formula Audits)", tab: "competitor-intel" },
+  { label: "Jump to Media Bin & QA Intake (Radar Scan, DMCA, Streamer Rights)", tab: "ingest" },
   { label: "Jump to Cut Studio & Voiceover Engine", tab: "studio" },
-  { label: "Jump to Research, Opportunity Discovery & Competitor Gaps", tab: "ingest" },
+  { label: "Jump to Faceless & Long-Form Graduation Studio", tab: "faceless-studio" },
   { label: "Jump to VOD Slicer & Highlights", tab: "vod" },
   { label: "Jump to Templates, B-Roll & Asset Alignment", tab: "templates" },
   { label: "Jump to Asset Discovery Vault (Public Domain & Memes)", tab: "assets" },
   { label: "Jump to Multimodal AI Lab (Live Voice, Video, Images, Lyria Music)", tab: "ai-lab" },
-  { label: "Jump to Monetization Hub (Affiliates, Lead Pages, Funnels, Deep Research)", tab: "monetization" },
-  { label: "Jump to Performance & ROI Monitor (Velocity, Heatmap, Alerts)", tab: "performance" },
+  { label: "Jump to Monetization Hub (Revenue Streams, Projections, Discord Alerts)", tab: "monetization" },
+  { label: "Jump to Affiliates, Email Capture Bridges & A/B Funnels", tab: "affiliates-funnels" },
+  { label: "Jump to Performance & ROI Monitor (Sankey Attribution, Velocity, Heatmap)", tab: "performance" },
   { label: "Jump to Channels & Publishing Fleet", tab: "distribution" },
-  { label: "Jump to AI Autopilot, Self-Learning & Windows PC LM Studio", tab: "autopilot" },
-  { label: "Jump to GitOps, CI/CD & Windows/VPS Workers", tab: "gitops" },
+  { label: "Jump to Platform Expansion Engine (12-Platform Arbitrage)", tab: "platform-expansion" },
+  { label: "Jump to AI Autopilot & 12-Stage Autonomous Missions", tab: "autopilot" },
+  { label: "Jump to Compute Tiers, Windows PC LM Studio & Remote Control", tab: "compute-remote" },
+  { label: "Jump to GitOps, CI/CD & Cloudflare/GitHub Deploy", tab: "gitops" },
   { label: "Jump to Pitch Deck, Training Academy & Feature Atlas", tab: "guide" },
 ];
 

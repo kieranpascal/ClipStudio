@@ -37,6 +37,7 @@ import type {
   SourcePlatform,
   StreamerPolicyEntry,
   UiMode,
+  WorkspaceTab,
 } from "../types";
 import {
   computeSaturationLevel,
@@ -112,6 +113,7 @@ interface IngestDeckProps {
   }) => Promise<void>;
   onDeleteClip: (clipId: string) => void;
   onUpdateStreamerPolicies: (policies: StreamerPolicyEntry[]) => Promise<void>;
+  onSelectTab?: (tab: WorkspaceTab) => void;
   onNotify?: (type: "success" | "error", message: string) => void;
 }
 
@@ -169,11 +171,10 @@ export function IngestDeck({
   onAddClip,
   onDeleteClip,
   onUpdateStreamerPolicies,
+  onSelectTab,
   onNotify,
 }: IngestDeckProps) {
-  const [deckMode, setDeckMode] = useState<"discovery" | "research" | "faceless" | "bin">(
-    uiMode === "easy" ? "discovery" : "bin"
-  );
+  const [deckMode, setDeckMode] = useState<"discovery" | "research" | "faceless" | "bin">("bin");
   const [researchFocus, setResearchFocus] = useState(
     "High-RPM viral short-form opportunities across Gaming, AI/Tech, Podcasts & Faceless Docs"
   );
@@ -375,6 +376,21 @@ export function IngestDeck({
         <div className="flex items-center gap-6 overflow-x-auto">
           <button
             type="button"
+            onClick={() => setDeckMode("bin")}
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
+              deckMode === "bin"
+                ? "text-[#0F172A] dark:text-[#F1F5F9]"
+                : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
+            }`}
+          >
+            <Film className="w-3.5 h-3.5 text-[#E1392B]" />
+            <span>Media Bin &amp; QA ({clips.length})</span>
+            {deckMode === "bin" && (
+              <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => setDeckMode("discovery")}
             className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
               deckMode === "discovery"
@@ -382,9 +398,9 @@ export function IngestDeck({
                 : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
             }`}
           >
-            <Search className="w-3.5 h-3.5 text-[#E1392B]" />
+            <Search className="w-3.5 h-3.5" />
             <span>
-              Opportunity Discovery ({opportunityDiscovery?.topics?.length || 0})
+              Quick Discovery ({opportunityDiscovery?.topics?.length || 0})
             </span>
             {deckMode === "discovery" && (
               <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
@@ -399,8 +415,8 @@ export function IngestDeck({
                 : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
             }`}
           >
-            <Compass className="w-3.5 h-3.5 text-[#E1392B]" />
-            <span>Research: What to Make ({researchOpportunities.length})</span>
+            <Compass className="w-3.5 h-3.5" />
+            <span>Opportunity Queue ({researchOpportunities.length})</span>
             {deckMode === "research" && (
               <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
             )}
@@ -414,32 +430,36 @@ export function IngestDeck({
                 : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
             }`}
           >
-            <Wand2 className="w-3.5 h-3.5 text-[#E1392B]" />
-            <span>Faceless Story Builder</span>
+            <Wand2 className="w-3.5 h-3.5" />
+            <span>Quick Faceless</span>
             {deckMode === "faceless" && (
-              <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setDeckMode("bin")}
-            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
-              deckMode === "bin"
-                ? "text-[#0F172A] dark:text-[#F1F5F9]"
-                : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
-            }`}
-          >
-            <Film className="w-3.5 h-3.5" />
-            <span>Media Bin &amp; QA ({clips.length})</span>
-            {deckMode === "bin" && (
               <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
             )}
           </button>
         </div>
 
-        <span className="hidden xl:inline text-[11px] font-mono text-slate-500">
-          Google Search Gap Discovery · Multi-Niche Intake · Faceless Studio
-        </span>
+        <div className="flex items-center gap-2 py-1.5">
+          {onSelectTab && (
+            <>
+              <button
+                type="button"
+                onClick={() => onSelectTab("research-hub")}
+                className="h-7 px-2.5 rounded-xs border border-[#D4DAE4] dark:border-[#262B37] hover:border-[#E1392B] text-[11px] font-semibold text-[#0F172A] dark:text-[#F1F5F9] inline-flex items-center gap-1 whitespace-nowrap"
+              >
+                <Compass className="w-3 h-3 text-[#E1392B]" />
+                <span>Full Research Hub</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectTab("faceless-studio")}
+                className="h-7 px-2.5 rounded-xs border border-[#D4DAE4] dark:border-[#262B37] hover:border-[#E1392B] text-[11px] font-semibold text-[#0F172A] dark:text-[#F1F5F9] inline-flex items-center gap-1 whitespace-nowrap"
+              >
+                <Wand2 className="w-3 h-3 text-[#E1392B]" />
+                <span>Faceless &amp; Long-Form</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {deckMode === "discovery" ? (

@@ -92,11 +92,11 @@ const DECK_CHAPTERS: DeckChapter[] = [
     competitorBeat: {
       rival: "Fragmented Stack (OpusClip + Submagic + Repurpose.io + VidIQ + ClickFunnels = $260+/mo)",
       complaint: "Creators waste 40% of production time downloading MP4s from one SaaS, uploading to another for captions, then debugging broken affiliate spreadsheets in a third.",
-      clipforgeUpgrade: "Single modular Studio Dashboard separating Action Queue from Telemetry, with Simple Mode (core daily workspaces) and Pro Studio Mode (all 13 workspaces including VOD Slicer, B-Roll Alignment, Asset Vault, and GitOps/VPS).",
+      clipforgeUpgrade: "Single modular Studio Dashboard separating Action Queue from Telemetry across 5 top-level categories (Overview, Research & Intelligence before Production, Production, Monetization & Growth, Infrastructure & Training) with Simple Mode and Pro Studio Mode (all 21 dedicated workspaces).",
     },
     whatAndWhy: [
       "ClipForge treats short-form content like a measurable broadcast business instead of random editing. The Studio Dashboard surfaces exactly what requires your decision right now (clips pending QA, +15% ROI surges, competitor releases, autonomous self-learning proposals) while keeping 6-month revenue trajectory and Windows PC LM Studio health visible beside it.",
-      "Simple Mode strips the rail down to the highest-leverage daily workspaces (Studio Dashboard, Cut Studio, Research & Gaps, Multimodal AI Lab, Monetization Hub, Performance & ROI, Channels & Publish, AI Autopilot, Training). Pro Studio Mode unlocks VOD Slicing, Templates & Asset Alignment, Asset Discovery Vault, and GitOps/Windows/VPS workers.",
+      "Research & Intelligence sits directly BEFORE Production as its own 4-page category (Research Command Center, Opportunity & Gap Radar, Social/Comments & Sentiment Lab, Competitor & Trend Intelligence) so every clip enters Cut Studio or the Faceless & Long-Form Builder backed by real search gaps and buyer-intent comments.",
     ],
     workflow: [
       { step: "01 · Discover", action: "TrendPulse & Outlier Radar scan live signals", outcome: "Only 3x+ outlier ideas enter the bin" },
@@ -137,8 +137,8 @@ const DECK_CHAPTERS: DeckChapter[] = [
     category: "research",
     title: "Data-Driven Research, Outlier Radar & Faceless Story Builder",
     subtitle: "Research is where shorts win or die — stop guessing topics and measure channel outlier multipliers",
-    targetTab: "ingest",
-    targetLabel: "Open Research & Ingest",
+    targetTab: "research-hub",
+    targetLabel: "Open Research Command Center",
     heroImage: IMG_RESEARCH,
     imageCaption: "1of10 Outlier Multiplier + Velocity-per-Minute (VPM) + Saturation Guard",
     competitorBeat: {
@@ -1045,21 +1045,21 @@ interface FeatureAtlasItem {
 const COMPLETE_FEATURE_ATLAS: FeatureAtlasItem[] = [
   // Overview & Control
   { id: "f01", name: "Studio Dashboard Command Center", workspace: "dashboard", workspaceLabel: "Studio Dashboard", category: "Overview & Control", engine: "Hybrid Workspace", summary: "Executive home separating Action Queue (approvals, alerts, self-learning) from Telemetry & Infra." },
-  { id: "f02", name: "Simple vs. Pro Studio Mode", workspace: "dashboard", workspaceLabel: "Studio Dashboard", category: "Overview & Control", engine: "Client State", summary: "Toggle between streamlined daily mode and full 13-workspace NLE/GitOps pro layout." },
-  { id: "f03", name: "Cmd+K AI Command Palette", workspace: "dashboard", workspaceLabel: "Studio Dashboard", category: "Overview & Control", engine: "Gemini + Quick Nav", summary: "Instant keyboard search across all 13 workspaces, clips, and natural-language AI Director commands." },
+  { id: "f02", name: "Simple vs. Pro Studio Mode", workspace: "dashboard", workspaceLabel: "Studio Dashboard", category: "Overview & Control", engine: "Client State", summary: "Toggle between streamlined daily mode and full 21-workspace NLE, Research & GitOps pro layout." },
+  { id: "f03", name: "Cmd+K AI Command Palette", workspace: "dashboard", workspaceLabel: "Studio Dashboard", category: "Overview & Control", engine: "Gemini + Quick Nav", summary: "Instant keyboard search across all 21 workspaces, clips, and natural-language AI Director commands." },
   { id: "f04", name: "Autonomous Self-Learning Loop & Ledger", workspace: "dashboard", workspaceLabel: "Studio Dashboard", category: "Overview & Control", engine: "Gemini / LM Studio", summary: "Audits retention, funnels, alerts & affiliates; persists learnings and optional safe auto-patches." },
   { id: "f05", name: "Custom Keyboard Shortcuts & Slang Rules", workspace: "settings", workspaceLabel: "Settings Modal", category: "Overview & Control", engine: "GitOps Config", summary: "Rebind NLE hotkeys and configure custom slang/caption autocorrection rules." },
   { id: "f06", name: "Account & Supabase Auth Manager", workspace: "dashboard", workspaceLabel: "TopBar Account", category: "Overview & Control", engine: "Supabase / Server Auth", summary: "Sign up, sign in, and manage authenticated workspace sessions." },
 
   // Research & Discovery
-  { id: "f07", name: "Opportunity Discovery (Google Search)", workspace: "ingest", workspaceLabel: "Research & Gaps", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Finds high-performing uncovered niche topics not yet in your clip library." },
-  { id: "f08", name: "Competitor Gap Scanner", workspace: "ingest", workspaceLabel: "Research & Gaps", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Scans rival channels for uncovered video formats and drafts them as Opportunity cards." },
-  { id: "f09", name: "Recurring Knowledge Acquisition Crawler", workspace: "ingest", workspaceLabel: "Research & Gaps", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Scheduled crawler scanning creator economy newsletters & AI updates into Opportunity cards." },
-  { id: "f10", name: "Deep Multi-Source Comment Research", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Analyzes YouTube, TikTok, Reddit & X comment buyer intent and monetization angles." },
-  { id: "f11", name: "TrendPulse Live Gaming & Viral Radar", workspace: "autopilot", workspaceLabel: "AI Autopilot", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Tracks breaking Twitch/YouTube trends, pin priorities, and auto-adds target games." },
-  { id: "f12", name: "Outlier Media Bin & Batch Queue", workspace: "ingest", workspaceLabel: "Research & Gaps", category: "Research & Discovery", engine: "Server Engine", summary: "Ingest clips, score viral velocity, enforce streamer policies, and run batch QA/approve." },
-  { id: "f13", name: "Faceless Short Auto-Builder", workspace: "ingest", workspaceLabel: "Research & Gaps", category: "Research & Discovery", engine: "Gemini Cloud", summary: "Generates complete faceless script, hook, template, and voiceover-ready clip from a topic." },
-  { id: "f14", name: "Industry News & Tool Radar", workspace: "autopilot", workspaceLabel: "AI Autopilot", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Monitors creator economy shifts and feeds summaries directly into AI Agent memory." },
+  { id: "f07", name: "Opportunity Discovery (Google Search)", workspace: "opportunity-radar", workspaceLabel: "Opportunity & Gap Radar", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Finds high-performing uncovered niche topics not yet in your clip library." },
+  { id: "f08", name: "Competitor Gap Scanner", workspace: "opportunity-radar", workspaceLabel: "Opportunity & Gap Radar", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Scans rival channels for uncovered video formats and drafts them as Opportunity cards." },
+  { id: "f09", name: "Recurring Knowledge Acquisition Crawler", workspace: "opportunity-radar", workspaceLabel: "Opportunity & Gap Radar", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Scheduled crawler scanning creator economy newsletters & AI updates into Opportunity cards." },
+  { id: "f10", name: "Deep Multi-Source Comment Research", workspace: "audience-social-intel", workspaceLabel: "Social & Sentiment Lab", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Analyzes YouTube, TikTok, Reddit & X comment buyer intent and monetization angles." },
+  { id: "f11", name: "TrendPulse Live Gaming & Viral Radar", workspace: "competitor-intel", workspaceLabel: "Competitor & Trend Intel", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Tracks breaking Twitch/YouTube trends, pin priorities, and auto-adds target games." },
+  { id: "f12", name: "Outlier Media Bin & Batch Queue", workspace: "ingest", workspaceLabel: "Media Bin & QA", category: "Research & Discovery", engine: "Server Engine", summary: "Ingest clips, score viral velocity, enforce streamer policies, and run batch QA/approve." },
+  { id: "f13", name: "Faceless Short Auto-Builder", workspace: "faceless-studio", workspaceLabel: "Faceless & Long-Form", category: "Research & Discovery", engine: "Gemini Cloud", summary: "Generates complete faceless script, hook, template, and voiceover-ready clip from a topic." },
+  { id: "f14", name: "Industry News & Tool Radar", workspace: "audience-social-intel", workspaceLabel: "Social & Sentiment Lab", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Monitors creator economy shifts and feeds summaries directly into AI Agent memory." },
   { id: "f15", name: "Asset Discovery Vault", workspace: "assets", workspaceLabel: "Asset Discovery", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Discovers license-safe public-domain footage, meme cuts, and reaction overlays for your vault." },
 
   // Studio & AI Creation
@@ -1081,12 +1081,12 @@ const COMPLETE_FEATURE_ATLAS: FeatureAtlasItem[] = [
 
   // Monetization & Revenue
   { id: "f31", name: "Dedicated Monetization Hub Workspace", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Monetization & Revenue", engine: "Hybrid Engine", summary: "Executive hub uniting revenue forecasts, affiliates, lead pages, CTA funnels, and sponsors." },
-  { id: "f32", name: "Affiliate Offer & Live Click/Conversion Tracker", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Monetization & Revenue", engine: "Server Ledger", summary: "HTTPS-validated affiliate links, UTM copy, live click/conversion logging, and EPC tracking." },
-  { id: "f33", name: "Email Lead Capture Bridge Page Manager", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Monetization & Revenue", engine: "Server Ledger", summary: "Build opt-in pages linked to affiliate offers, toggle Active/Paused, and track subscriber ROI." },
-  { id: "f34", name: "Grouped CTA A/B Funnel Test (Intro/Mid/Outro)", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Monetization & Revenue", engine: "Gemini + Recharts", summary: "Compares CTA placements by location and applies the winning sponsorship funnel automatically." },
+  { id: "f32", name: "Affiliate Offer & Live Click/Conversion Tracker", workspace: "affiliates-funnels", workspaceLabel: "Affiliates & Funnels", category: "Monetization & Revenue", engine: "Server Ledger", summary: "HTTPS-validated affiliate links, UTM copy, live click/conversion logging, and EPC tracking." },
+  { id: "f33", name: "Email Lead Capture Bridge Page Manager", workspace: "affiliates-funnels", workspaceLabel: "Affiliates & Funnels", category: "Monetization & Revenue", engine: "Server Ledger", summary: "Build opt-in pages linked to affiliate offers, preview mobile bridge funnel, and track subscriber ROI." },
+  { id: "f34", name: "Grouped CTA A/B Funnel Test (Intro/Mid/Outro)", workspace: "affiliates-funnels", workspaceLabel: "Affiliates & Funnels", category: "Monetization & Revenue", engine: "Gemini + Recharts", summary: "Compares CTA placements by location and applies the winning sponsorship funnel automatically." },
   { id: "f35", name: "Sponsor Health & Burn Rate Monitor", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Monetization & Revenue", engine: "Server Telemetry", summary: "Tracks CTR per dollar spent for top 3 sponsors and flags >10% ROI drops vs. 30-day avg." },
   { id: "f36", name: "Multi-Stream 6-Month Revenue Projector", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Monetization & Revenue", engine: "Gemini + Recharts", summary: "Models Ad Share, Sponsorships, and Affiliate/Digital revenue across scaling cadences." },
-  { id: "f37", name: "Short → Long-Form Graduation Pipeline", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Monetization & Revenue", engine: "Gemini Cloud", summary: "Converts breakout Shorts into 10m+ high-RPM YouTube long-form scripts & chapter blueprints." },
+  { id: "f37", name: "Short → Long-Form Graduation Pipeline", workspace: "faceless-studio", workspaceLabel: "Faceless & Long-Form", category: "Monetization & Revenue", engine: "Gemini Cloud", summary: "Converts breakout Shorts into 10m+ high-RPM YouTube long-form scripts, chapters & sponsor slots." },
 
   // Analytics & Testing
   { id: "f38", name: "90-Day Revenue Projection (Expected vs Actual)", workspace: "performance", workspaceLabel: "Performance & ROI", category: "Analytics & Testing", engine: "Recharts", summary: "Plots expected vs. actual ad revenue over the next 90 days from monetization plan data." },
@@ -1094,21 +1094,31 @@ const COMPLETE_FEATURE_ATLAS: FeatureAtlasItem[] = [
   { id: "f40", name: "D3 Viral Growth Heatmap & Cadence Optimizer", workspace: "performance", workspaceLabel: "Performance & ROI", category: "Analytics & Testing", engine: "D3.js", summary: "Visualizes peak hour/day engagement across all channels with 1-click cadence apply." },
   { id: "f41", name: "Revenue Attribution Matrix by Niche", workspace: "performance", workspaceLabel: "Performance & ROI", category: "Analytics & Testing", engine: "Recharts", summary: "Plots ad revenue + sponsor conversions against engagement to rank highest-ROI niches." },
   { id: "f42", name: "A/B Hook & Editing Style Winner Monitor", workspace: "performance", workspaceLabel: "Performance & ROI", category: "Analytics & Testing", engine: "Gemini Cloud", summary: "Compares hook variants & editing styles on views/retention and bakes winner into config." },
-  { id: "f43", name: "+15% Revenue Growth & Competitive Niche Alerts", workspace: "performance", workspaceLabel: "Performance & ROI", category: "Analytics & Testing", engine: "Gemini + Search", summary: "Pushes ROI surge alerts and triggers rapid-response clipping missions on rival uploads." },
+  { id: "f43", name: "+15% Revenue Growth & Competitive Niche Alerts", workspace: "competitor-intel", workspaceLabel: "Competitor & Trend Intel", category: "Analytics & Testing", engine: "Gemini + Search", summary: "Pushes ROI surge alerts and triggers rapid-response clipping missions on rival uploads." },
 
   // Distribution & Ops
   { id: "f44", name: "Multi-Channel Fleet & Auto-Scheduler", workspace: "distribution", workspaceLabel: "Channels & Publish", category: "Distribution & Ops", engine: "Server Fleet", summary: "Manages YouTube, TikTok, Reels, X & Facebook accounts with timezone-aware scheduling." },
   { id: "f45", name: "6-Platform SEO Metadata Pack Generator", workspace: "performance", workspaceLabel: "Performance & ROI", category: "Distribution & Ops", engine: "LM Studio / Gemini", summary: "Generates platform-native titles, descriptions, tags, and pinned comments per clip." },
   { id: "f46", name: "12-Stage Autonomous Mission Runner", workspace: "autopilot", workspaceLabel: "AI Autopilot", category: "Distribution & Ops", engine: "Gemini / Hybrid", summary: "Executes end-to-end idea→script→clip→SEO→publish missions with optional approval gates." },
-  { id: "f47", name: "Discord, Telegram & WhatsApp Remote Control", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Distribution & Ops", engine: "Webhook Bridge", summary: "Receive digest alerts and run /approve, /status, or /mission commands from chat apps." },
-  { id: "f48", name: "Platform Expansion Research Engine", workspace: "autopilot", workspaceLabel: "AI Autopilot", category: "Distribution & Ops", engine: "Gemini + Search", summary: "Discovers emerging social platforms and applies tailored syndication templates." },
+  { id: "f47", name: "Discord, Telegram & WhatsApp Remote Control", workspace: "compute-remote", workspaceLabel: "Compute & Remote Control", category: "Distribution & Ops", engine: "Webhook Bridge", summary: "Receive digest alerts and run /approve, /status, or /mission commands from chat apps." },
+  { id: "f48", name: "Platform Expansion Research Engine", workspace: "platform-expansion", workspaceLabel: "Platform Expansion", category: "Distribution & Ops", engine: "Gemini + Search", summary: "Discovers emerging social platforms, maps 12-platform footprint, and applies syndication templates." },
 
   // Infrastructure & Training
-  { id: "f49", name: "5-Tier AI Compute & Windows PC LM Studio Hub", workspace: "autopilot", workspaceLabel: "AI Autopilot", category: "Infrastructure & Training", engine: "LM Studio + Gemini", summary: "Routes tasks across Manual Free, local Windows PC LM Studio, and Gemini Cloud credit tiers." },
-  { id: "f50", name: "GitOps Config, CI/CD & Cloud VPS Worker Pack", workspace: "gitops", workspaceLabel: "GitOps & Windows/VPS", category: "Infrastructure & Training", engine: "Docker + GitHub", summary: "Versioned pipeline.config.json, dispatch history, and downloadable Windows/Linux VPS workers." },
+  { id: "f49", name: "5-Tier AI Compute & Windows PC LM Studio Hub", workspace: "compute-remote", workspaceLabel: "Compute & Remote Control", category: "Infrastructure & Training", engine: "LM Studio + Gemini", summary: "Routes tasks across Manual Free, local Windows PC LM Studio, and Gemini Cloud credit tiers." },
+  { id: "f50", name: "GitOps Config, CI/CD & Cloud VPS Worker Pack", workspace: "gitops", workspaceLabel: "GitOps & Deploy", category: "Infrastructure & Training", engine: "Docker + GitHub", summary: "Versioned pipeline.config.json, dispatch history, and downloadable Windows/Linux VPS workers." },
   { id: "f51", name: "20-Chapter Interactive Pitch Deck & Training", workspace: "guide", workspaceLabel: "Pitch Deck & Training", category: "Infrastructure & Training", engine: "Interactive Guide", summary: "Mastery checklist, presenter mode, Complete Feature Atlas, YouTube sources, and Markdown export." },
   { id: "f52", name: "Discord Mission Success & ROI Surge Alert Config", workspace: "monetization", workspaceLabel: "Monetization Hub", category: "Distribution & Ops", engine: "Remote Bridge", summary: "Routes AI Director Mission Success and configurable ROI Surge alerts to a dedicated Discord channel." },
   { id: "f53", name: "Clip-to-CTA-to-Conversion Sankey Attribution Panel", workspace: "performance", workspaceLabel: "Performance & ROI", category: "Analytics & Testing", engine: "Interactive SVG Sankey", summary: "Breaks down per-clip revenue sources and traces CTA variants to Sponsorship, Affiliate, Email & Ad-Share conversions." },
+
+  // Dedicated Research Category & Expanded Section Workspaces
+  { id: "f54", name: "Research Command Center (Pre-Production Hub)", workspace: "research-hub", workspaceLabel: "Research Command Center", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Unified pre-production intelligence desk ranking niche RPM arbitrage, live gaps, social pain points, and rapid rival responses." },
+  { id: "f55", name: "Editing Style Comment Sentiment Lab", workspace: "audience-social-intel", workspaceLabel: "Social & Sentiment Lab", category: "Research & Discovery", engine: "Gemini + Google Search", summary: "Scores real viewer comment sentiment on editing styles and applies winning directives straight to the AI Director." },
+  { id: "f56", name: "Competitor Viral Formula Reverse-Engineer", workspace: "competitor-intel", workspaceLabel: "Competitor & Trend Intel", category: "Research & Discovery", engine: "Gemini Cloud", summary: "Deconstructs any rival short's hook formula and drafts a superior counter-clip straight into Cut Studio." },
+  { id: "f57", name: "Editable Long-Form Chapter & Sponsor Blueprint Studio", workspace: "faceless-studio", workspaceLabel: "Faceless & Long-Form", category: "Studio & AI Creation", engine: "Server Persistence", summary: "Edit 10m+ YouTube video titles, durations, RPM estimates, mid-roll sponsor notes, chapters, and production stages." },
+  { id: "f58", name: "Live Mobile Email Bridge Funnel Preview", workspace: "affiliates-funnels", workspaceLabel: "Affiliates & Funnels", category: "Monetization & Revenue", engine: "Interactive Preview", summary: "Visualizes the exact Short → Email Opt-In → Affiliate Offer redirect flow with 30-day revenue comparison charts." },
+  { id: "f59", name: "12-Platform Distribution Footprint Matrix", workspace: "platform-expansion", workspaceLabel: "Platform Expansion", category: "Distribution & Ops", engine: "Server Fleet", summary: "Maps active vs. untapped primary and secondary arbitrage networks (LinkedIn, Reddit, Pinterest, Threads, Bluesky, Substack)." },
+  { id: "f60", name: "Windows PC LM Studio & Linux VPS Offload Router", workspace: "compute-remote", workspaceLabel: "Compute & Remote Control", category: "Infrastructure & Training", engine: "LM Studio / Docker", summary: "Granular task-offload routing, live local model ping, and 1-click PowerShell (.ps1) & Docker Compose worker exports." },
+  { id: "f61", name: "Interactive Remote Slash-Command Console", workspace: "compute-remote", workspaceLabel: "Compute & Remote Control", category: "Infrastructure & Training", engine: "Webhook Bridge", summary: "Test and dispatch /status, /approve, /mission, and /digest commands across Discord, Telegram, and WhatsApp." },
 ];
 
 const CATEGORIES: Array<{ id: ChapterCategory; label: string }> = [
@@ -1276,7 +1286,7 @@ export function PresentationDeck({
     );
 
     const atlasTable = [
-      `## Complete Feature Atlas (${COMPLETE_FEATURE_ATLAS.length} Features Across All 13 Workspaces)`,
+      `## Complete Feature Atlas (${COMPLETE_FEATURE_ATLAS.length} Features Across All 21 Workspaces)`,
       "",
       `| # | Feature | Workspace | Category | Engine | What It Does |`,
       `|---|---|---|---|---|---|`,
@@ -1383,7 +1393,7 @@ export function PresentationDeck({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={viewMode === "atlas" ? "Filter all 51 features..." : "Search chapter or rival..."}
+              placeholder={viewMode === "atlas" ? `Filter all ${COMPLETE_FEATURE_ATLAS.length} features...` : "Search chapter or rival..."}
               className="h-8 pl-8 pr-3 w-44 sm:w-52 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#14171F] text-xs focus:outline-none focus:border-[#E1392B]"
             />
           </div>
@@ -1431,7 +1441,7 @@ export function PresentationDeck({
               ))}
             </div>
             <div className="text-[11px] font-mono tabular-nums text-slate-500">
-              Showing {filteredAtlas.length} of {COMPLETE_FEATURE_ATLAS.length} live modules across 13 workspaces
+              Showing {filteredAtlas.length} of {COMPLETE_FEATURE_ATLAS.length} live modules across 21 workspaces
             </div>
           </div>
 

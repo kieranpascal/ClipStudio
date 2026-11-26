@@ -8,10 +8,35 @@
 }
 
 @layer base {
+  :root {
+    --studio-chassis: #E6EAF0;
+    --studio-canvas: #F3F5F8;
+    --studio-surface: #FFFFFF;
+    --studio-elevated: #F8FAFC;
+    --studio-border: #CDD5E0;
+    --studio-hairline: #E2E8F0;
+    --studio-accent: #E1392B;
+  }
+
+  .dark {
+    --studio-chassis: #080A0F;
+    --studio-canvas: #0E1117;
+    --studio-surface: #151922;
+    --studio-elevated: #1B212D;
+    --studio-border: #252C3B;
+    --studio-hairline: #1C222F;
+    --studio-accent: #E1392B;
+  }
+
   body {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    letter-spacing: 0.005em;
+  }
+
+  .dark body {
+    letter-spacing: 0.01em;
   }
 
   h1, h2, h3, h4, .font-display {
@@ -51,6 +76,11 @@ input[type="range"].nle-slider::-webkit-slider-thumb {
   background: #E1392B;
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+/* Subtle dot-grid backdrop for recessed telemetry wells */
+.studio-telemetry-well {
+  background-color: var(--studio-chassis);
 }
 
 ::-webkit-scrollbar {

@@ -983,6 +983,76 @@ export function registerGrowthSuiteRoutes(app: Express, deps: SuiteRouteDeps): v
     res.status(201).json({ longFormPipeline: state.longFormPipeline });
   });
 
+  app.patch("/api/monetization/long-form/:id", (req: Request, res: Response) => {
+    const state = deps.readWorkspace();
+    const id = String(req.params.id || "").trim();
+    const list = state.longFormPipeline || buildSeedLongFormPipeline();
+    const idx = list.findIndex((item) => item.id === id);
+    if (idx === -1) {
+      res.status(404).json({ error: "Long-form blueprint not found." });
+      return;
+    }
+    const current = { ...list[idx] };
+    const validStatuses = new Set<LongFormGraduationItem["status"]>([
+      "queued",
+      "scripting",
+      "in-production",
+      "published",
+    ]);
+    if (req.body?.status !== undefined) {
+      if (typeof req.body.status !== "string" || !validStatuses.has(req.body.status as LongFormGraduationItem["status"])) {
+        res.status(400).json({ error: "Invalid long-form production status." });
+        return;
+      }
+      current.status = req.body.status as LongFormGraduationItem["status"];
+    }
+    if (typeof req.body?.longFormTitle === "string" && req.body.longFormTitle.trim()) {
+      current.longFormTitle = req.body.longFormTitle.trim().slice(0, 200);
+    }
+    if (req.body?.targetDurationMin !== undefined) {
+      const mins = Number(req.body.targetDurationMin);
+      if (Number.isFinite(mins)) {
+        current.targetDurationMin = Math.max(4, Math.min(60, Math.round(mins)));
+      }
+    }
+    if (req.body?.estLongFormRpmUsd !== undefined) {
+      const rpm = Number(req.body.estLongFormRpmUsd);
+      if (Number.isFinite(rpm)) {
+        current.estLongFormRpmUsd = Number(Math.max(1, Math.min(120, rpm)).toFixed(2));
+      }
+    }
+    if (typeof req.body?.sponsorSlotNote === "string") {
+      current.sponsorSlotNote = req.body.sponsorSlotNote.trim().slice(0, 240);
+    }
+    if (Array.isArray(req.body?.chapters)) {
+      const cleaned = req.body.chapters
+        .map((c: unknown) => String(c || "").trim().slice(0, 140))
+        .filter(Boolean)
+        .slice(0, 16);
+      if (cleaned.length > 0) {
+        current.chapters = cleaned;
+      }
+    }
+    const nextList = [...list];
+    nextList[idx] = current;
+    state.longFormPipeline = nextList;
+    deps.saveWorkspace(state);
+    res.json({ item: current, longFormPipeline: state.longFormPipeline });
+  });
+
+  app.delete("/api/monetization/long-form/:id", (req: Request, res: Response) => {
+    const state = deps.readWorkspace();
+    const id = String(req.params.id || "").trim();
+    const list = state.longFormPipeline || buildSeedLongFormPipeline();
+    if (!list.some((item) => item.id === id)) {
+      res.status(404).json({ error: "Long-form blueprint not found." });
+      return;
+    }
+    state.longFormPipeline = list.filter((item) => item.id !== id);
+    deps.saveWorkspace(state);
+    res.json({ longFormPipeline: state.longFormPipeline });
+  });
+
   // =========================================================================
   // D. DISCORD / TELEGRAM / WHATSAPP REMOTE CONTROL & ALERTS BRIDGE
   // =========================================================================

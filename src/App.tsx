@@ -11,6 +11,7 @@ import type {
   CompetitorBreakdown,
   ContentNiche,
   CtaPlacementType,
+  DeepResearchFinding,
   DirectorRunResult,
   DiscoveredAsset,
   DiscoveredAssetType,
@@ -20,6 +21,7 @@ import type {
   KnowledgeSourceFeed,
   LayoutTemplate,
   LearningDiscoveryType,
+  LongFormGraduationItem,
   MissionAutonomyMode,
   MissionScheduleCadence,
   MissionStageId,
@@ -45,6 +47,14 @@ import type {
 import { TopBar } from "./components/TopBar";
 import { AppShellSidebar } from "./components/AppShellSidebar";
 import { StudioDashboardView } from "./components/StudioDashboardView";
+import { ResearchCommandCenterView } from "./components/ResearchCommandCenterView";
+import { OpportunityRadarPage } from "./components/OpportunityRadarPage";
+import { AudienceSocialIntelPage } from "./components/AudienceSocialIntelPage";
+import { CompetitorIntelPage } from "./components/CompetitorIntelPage";
+import { FacelessLongFormPage } from "./components/FacelessLongFormPage";
+import { AffiliatesFunnelsPage } from "./components/AffiliatesFunnelsPage";
+import { PlatformExpansionPage } from "./components/PlatformExpansionPage";
+import { ComputeRemotePage } from "./components/ComputeRemotePage";
 import { MonetizationHubView } from "./components/MonetizationHubView";
 import { IngestDeck } from "./components/IngestDeck";
 import { VerticalStudioView } from "./components/VerticalStudioView";
@@ -154,13 +164,20 @@ export default function App() {
       nextMode === "easy" &&
       ![
         "dashboard",
-        "studio",
+        "research-hub",
+        "opportunity-radar",
+        "audience-social-intel",
+        "competitor-intel",
         "ingest",
+        "studio",
+        "faceless-studio",
         "ai-lab",
         "monetization",
+        "affiliates-funnels",
         "performance",
-        "autopilot",
         "distribution",
+        "autopilot",
+        "compute-remote",
         "guide",
       ].includes(activeTab)
     ) {
@@ -246,12 +263,22 @@ export default function App() {
     const activeCompetitiveAlerts = (workspace?.competitiveAlerts || []).filter(
       (a) => a.status === "active"
     ).length;
+    const researchSignals =
+      (workspace?.opportunityDiscovery?.topics?.length || 0) +
+      (workspace?.researchOpportunities?.length || 0);
     return {
       pendingQa: clips.filter((c) => c.qaStatus === "pending").length,
       readyToPublish: clips.filter((c) => c.publishStatus === "ready" || c.publishStatus === "scheduled").length,
       activeAlerts: activeRevenueAlerts + activeCompetitiveAlerts,
+      researchSignals,
     };
-  }, [workspace?.clips, workspace?.revenueAlerts, workspace?.competitiveAlerts]);
+  }, [
+    workspace?.clips,
+    workspace?.revenueAlerts,
+    workspace?.competitiveAlerts,
+    workspace?.opportunityDiscovery?.topics,
+    workspace?.researchOpportunities,
+  ]);
 
   async function handleScanRadar() {
     setIsScanning(true);
@@ -2344,6 +2371,139 @@ export default function App() {
     }
   }
 
+  async function handleUpdateLongFormItem(
+    id: string,
+    patch: {
+      status?: LongFormGraduationItem["status"];
+      longFormTitle?: string;
+      targetDurationMin?: number;
+      estLongFormRpmUsd?: number;
+      chapters?: string[];
+      sponsorSlotNote?: string;
+    }
+  ) {
+    try {
+      const res = await fetch(`/api/monetization/long-form/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update long-form blueprint.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, longFormPipeline: data.longFormPipeline || prev.longFormPipeline } : prev
+      );
+      showNotice("success", "Saved long-form YouTube blueprint.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update long-form blueprint.");
+    }
+  }
+
+  async function handleDeleteLongFormItem(id: string) {
+    try {
+      const res = await fetch(`/api/monetization/long-form/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not remove long-form blueprint.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, longFormPipeline: data.longFormPipeline || prev.longFormPipeline } : prev
+      );
+      showNotice("success", "Removed long-form blueprint from production pipeline.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not remove long-form blueprint.");
+    }
+  }
+
+  async function handleCreateClipFromFinding(finding: DeepResearchFinding) {
+    try {
+      const res = await fetch("/api/clips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: finding.longFormExpansionTitle || finding.painPoint.slice(0, 96),
+          streamerName: finding.sourceChannel,
+          sourcePlatform: "YouTube",
+          sourceUrl: "https://www.youtube.com/",
+          gameCategory: workspace?.deepResearch?.niche && workspace.deepResearch.niche !== "all"
+            ? workspace.deepResearch.niche
+            : "tech-ai",
+          niche: workspace?.deepResearch?.niche && workspace.deepResearch.niche !== "all"
+            ? workspace.deepResearch.niche
+            : "tech-ai",
+          views: 8400,
+          ageMinutes: 25,
+          durationSec: 32,
+          duplicateCrossPosts: 0,
+          transcript: `${finding.painPoint} ${finding.viralHookAngle} ${finding.monetizationPath}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create clip from research finding.");
+      const createdClip = data.clip as ClipItem | undefined;
+      if (createdClip?.id) {
+        if (createdClip.layout) {
+          await handleUpdateClip(createdClip.id, {
+            layout: {
+              ...createdClip.layout,
+              hookBannerText: finding.viralHookAngle.slice(0, 72).toUpperCase(),
+              showHookBanner: true,
+            },
+          });
+        }
+        setSelectedClipId(createdClip.id);
+      }
+      await loadWorkspace();
+      setActiveTab("studio");
+      showNotice("success", `Created clip from ${finding.sourceChannel} finding and opened Cut Studio.`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not create clip from finding.");
+    }
+  }
+
+  async function handleCreateCounterClip(rivalTitle: string, breakdown: CompetitorBreakdown) {
+    try {
+      const res = await fetch("/api/clips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Counter-Angle: ${rivalTitle}`.slice(0, 96),
+          streamerName: "Competitor Counter-Lab",
+          sourcePlatform: "YouTube",
+          sourceUrl: "https://www.youtube.com/",
+          gameCategory: "Competitive Response",
+          niche: "tech-ai",
+          views: 6500,
+          ageMinutes: 20,
+          durationSec: 30,
+          duplicateCrossPosts: 0,
+          transcript: `${breakdown.counterHookBanner}. ${breakdown.weaknessToExploit}. Retention triggers: ${(breakdown.retentionTriggers || []).join(", ")}.`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create counter-clip.");
+      const createdClip = data.clip as ClipItem | undefined;
+      if (createdClip?.id) {
+        if (createdClip.layout) {
+          await handleUpdateClip(createdClip.id, {
+            layout: {
+              ...createdClip.layout,
+              hookBannerText: breakdown.counterHookBanner,
+              showHookBanner: true,
+              template: breakdown.recommendedTemplate,
+            },
+          });
+        }
+        setSelectedClipId(createdClip.id);
+      }
+      await loadWorkspace();
+      setActiveTab("studio");
+      showNotice("success", "Counter-clip drafted with reverse-engineered hook and opened in Cut Studio.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not create counter-clip.");
+    }
+  }
+
   async function handleUpdateRemoteBridge(patch: Partial<RemoteBridgeConfig>) {
     try {
       const res = await fetch("/api/remote-bridge/config", {
@@ -2490,6 +2650,7 @@ export default function App() {
         pendingCount={counts.pendingQa}
         readyCount={counts.readyToPublish}
         activeAlertCount={counts.activeAlerts}
+        researchSignalCount={counts.researchSignals}
         channelCount={workspace?.config.channelFleet.length || 0}
       />
 
@@ -2581,10 +2742,190 @@ export default function App() {
                 }}
                 onTestLocalLlm={handleTestLocalLlm}
                 onRunPipeline={() => handleDispatchPipeline(true)}
-                onOpenComputeHub={() => {
-                  setAutopilotSubTab("compute");
-                  setActiveTab("autopilot");
+                onOpenComputeHub={() => setActiveTab("compute-remote")}
+              />
+            )}
+
+            {activeTab === "research-hub" && (
+              <ResearchCommandCenterView
+                clips={workspace.clips}
+                config={workspace.config}
+                opportunityDiscovery={workspace.opportunityDiscovery}
+                researchOpportunities={workspace.researchOpportunities || []}
+                knowledgeAcquisition={workspace.knowledgeAcquisition}
+                deepResearch={workspace.deepResearch}
+                viralSentiment={workspace.viralSentiment}
+                industryNews={workspace.industryNews}
+                trendPulse={workspace.trendPulse}
+                competitiveAlerts={workspace.competitiveAlerts || []}
+                isDiscovering={isDiscoveringOpportunities}
+                isRunningDeepResearch={isRunningDeepResearch}
+                isCrawlingKnowledge={isCrawlingKnowledge}
+                isFetchingTrends={isFetchingTrends}
+                isDirecting={isDirecting}
+                isScanningSentiment={isScanningSentiment}
+                isApplyingSentiment={isApplyingSentiment}
+                onSelectTab={setActiveTab}
+                onQuickGapScan={async (niche, customQuery) => {
+                  await handleRunOpportunityDiscovery({
+                    niche,
+                    freshness: "7d",
+                    customQuery,
+                  });
                 }}
+                onQuickDeepResearch={async (query, niche) => {
+                  await handleRunDeepResearch({
+                    query,
+                    niche,
+                    autoDraftCards: true,
+                  });
+                }}
+                onRunKnowledgeCrawl={async () => {
+                  await handleRunKnowledgeCrawl();
+                }}
+                onCreateClipFromOpportunity={handleCreateClipFromOpportunity}
+                onCreateClipFromDiscoveredTopic={handleCreateClipFromDiscoveredTopic}
+                onCreateClipFromFinding={handleCreateClipFromFinding}
+                onLaunchRapidMission={handleLaunchRapidMission}
+                onFetchTrends={handleFetchTrends}
+                onToggleTrendPin={handleToggleTrendPin}
+                onTrackTrendGame={handleTrackTrendGame}
+                onExecuteDirector={handleExecuteDirector}
+                onScanViralSentiment={handleScanViralSentiment}
+                onApplySentimentToDirector={handleApplySentimentToDirector}
+              />
+            )}
+
+            {activeTab === "opportunity-radar" && (
+              <OpportunityRadarPage
+                clips={workspace.clips}
+                opportunityDiscovery={workspace.opportunityDiscovery}
+                researchOpportunities={workspace.researchOpportunities || []}
+                knowledgeAcquisition={workspace.knowledgeAcquisition}
+                isDiscoveringOpportunities={isDiscoveringOpportunities}
+                isResearching={isResearching}
+                isCrawlingKnowledge={isCrawlingKnowledge}
+                onRunOpportunityDiscovery={handleRunOpportunityDiscovery}
+                onRunCompetitorGapScan={handleRunCompetitorGapScan}
+                onCreateClipFromDiscoveredTopic={handleCreateClipFromDiscoveredTopic}
+                onSaveDiscoveredTopicToResearch={handleSaveDiscoveredTopicToResearch}
+                onRunResearch={handleRunResearch}
+                onCreateClipFromOpportunity={handleCreateClipFromOpportunity}
+                onUpdateKnowledgeConfig={handleUpdateKnowledgeConfig}
+                onRunKnowledgeCrawl={handleRunKnowledgeCrawl}
+                onOpenClipInStudio={(id) => {
+                  setSelectedClipId(id);
+                  setActiveTab("studio");
+                }}
+                onSelectTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "audience-social-intel" && (
+              <AudienceSocialIntelPage
+                deepResearch={workspace.deepResearch}
+                viralSentiment={workspace.viralSentiment}
+                industryNews={workspace.industryNews}
+                isRunningDeepResearch={isRunningDeepResearch}
+                isScanningSentiment={isScanningSentiment}
+                isApplyingSentiment={isApplyingSentiment}
+                isScanningNews={isScanningNews}
+                onRunDeepResearch={handleRunDeepResearch}
+                onScanViralSentiment={handleScanViralSentiment}
+                onApplySentimentToDirector={handleApplySentimentToDirector}
+                onScanIndustryNews={handleScanIndustryNews}
+                onFeedNewsToAgent={handleFeedNewsToAgent}
+                onCreateClipFromFinding={handleCreateClipFromFinding}
+                onSelectTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "competitor-intel" && (
+              <CompetitorIntelPage
+                config={workspace.config}
+                trendPulse={workspace.trendPulse}
+                competitiveAlerts={workspace.competitiveAlerts || []}
+                opportunityDiscovery={workspace.opportunityDiscovery}
+                isFetchingTrends={isFetchingTrends}
+                isDirecting={isDirecting}
+                isScanningCompetitiveAlerts={isScanningCompetitiveAlerts}
+                launchingCompetitiveAlertId={launchingCompetitiveAlertId}
+                onFetchTrends={handleFetchTrends}
+                onToggleTrendPin={handleToggleTrendPin}
+                onTrackTrendGame={handleTrackTrendGame}
+                onExecuteDirector={handleExecuteDirector}
+                onScanCompetitiveAlerts={handleScanCompetitiveAlerts}
+                onLaunchRapidMission={handleLaunchRapidMission}
+                onDismissCompetitiveAlert={handleDismissCompetitiveAlert}
+                onAnalyzeCompetitor={handleAnalyzeCompetitor}
+                onCreateCounterClip={handleCreateCounterClip}
+                onSelectTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "faceless-studio" && (
+              <FacelessLongFormPage
+                clips={workspace.clips}
+                longFormPipeline={workspace.longFormPipeline || []}
+                isBuildingFaceless={isBuildingFaceless}
+                onBuildFacelessShort={handleBuildFacelessShort}
+                onGraduateToLongForm={handleGraduateToLongForm}
+                onUpdateLongFormItem={handleUpdateLongFormItem}
+                onDeleteLongFormItem={handleDeleteLongFormItem}
+                onOpenClipInStudio={(id) => {
+                  setSelectedClipId(id);
+                  setActiveTab("studio");
+                }}
+                onSelectTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "affiliates-funnels" && (
+              <AffiliatesFunnelsPage
+                monetizationPlan={workspace.monetizationPlan}
+                affiliateOffers={workspace.affiliateOffers || []}
+                emailLandingPages={workspace.emailLandingPages || []}
+                isAnalyzingFunnel={isAnalyzingFunnel}
+                isApplyingFunnelWinner={isApplyingFunnelWinner}
+                onAddAffiliateOffer={handleAddAffiliateOffer}
+                onDeleteAffiliateOffer={handleDeleteAffiliateOffer}
+                onTrackAffiliateEvent={handleTrackAffiliateEvent}
+                onAddLandingPage={handleAddLandingPage}
+                onUpdateLandingPage={handleUpdateLandingPage}
+                onAddFunnelVariant={handleAddFunnelVariant}
+                onAnalyzeFunnel={handleAnalyzeFunnel}
+                onApplyFunnelWinner={handleApplyFunnelWinner}
+                onSelectTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "platform-expansion" && (
+              <PlatformExpansionPage
+                config={workspace.config}
+                platformExpansion={workspace.platformExpansion}
+                isResearchingExpansion={isResearchingExpansion}
+                applyingPatternId={applyingPatternId}
+                removingPlatform={removingPlatform}
+                onUpdateExpansionConfig={handleUpdateExpansionConfig}
+                onResearchExpansion={handleResearchExpansion}
+                onApplyExpansionPattern={handleApplyExpansionPattern}
+                onRemoveExpansionPlatform={handleRemoveExpansionPlatform}
+                onSelectTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "compute-remote" && (
+              <ComputeRemotePage
+                config={workspace.config}
+                computeRouting={workspace.computeRouting}
+                remoteBridge={workspace.remoteBridge}
+                onUpdateComputeRouting={handleUpdateComputeRouting}
+                onSaveConfig={handleSaveConfig}
+                onTestLocalLlm={handleTestLocalLlm}
+                onFetchWorkerPack={handleFetchWorkerPack}
+                onUpdateRemoteBridge={handleUpdateRemoteBridge}
+                onRunRemoteCommand={handleRunRemoteCommand}
+                onSelectTab={setActiveTab}
               />
             )}
 
@@ -2700,6 +3041,7 @@ export default function App() {
                 onAddClip={handleAddClip}
                 onDeleteClip={handleDeleteClip}
                 onUpdateStreamerPolicies={handleUpdateStreamerPolicies}
+                onSelectTab={setActiveTab}
                 onNotify={showNotice}
               />
             )}
@@ -2766,10 +3108,7 @@ export default function App() {
                 computeRouting={workspace.computeRouting}
                 onSyncComputeRouting={handleSyncComputeRouting}
                 onApplyTranscriptToClip={handleApplyTranscriptToClip}
-                onJumpToComputeHub={() => {
-                  setAutopilotSubTab("compute");
-                  setActiveTab("autopilot");
-                }}
+                onJumpToComputeHub={() => setActiveTab("compute-remote")}
                 onNotify={showNotice}
               />
             )}
@@ -2849,7 +3188,7 @@ export default function App() {
                 onRunSelfLearningCycle={handleRunSelfLearningCycle}
                 onAdoptDiscovery={handleAdoptDiscovery}
                 onRunKnowledgeCrawl={handleRunKnowledgeCrawl}
-                onOpenIngestOpportunities={() => setActiveTab("ingest")}
+                onOpenIngestOpportunities={() => setActiveTab("opportunity-radar")}
                 onUpdateExpansionConfig={handleUpdateExpansionConfig}
                 onResearchExpansion={handleResearchExpansion}
                 onApplyExpansionPattern={handleApplyExpansionPattern}
