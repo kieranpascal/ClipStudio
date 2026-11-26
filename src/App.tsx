@@ -1,14 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import type {
+  CaptionFontFamily,
+  CaptionStylePreset,
   ChannelAccount,
   ClipItem,
   CompetitorBreakdown,
+  ContentNiche,
   DirectorRunResult,
+  DiscoveredAsset,
+  DiscoveredAssetType,
+  HookBannerPosition,
+  KnowledgeCrawlCadence,
+  KnowledgeSourceFeed,
+  LayoutTemplate,
+  LearningDiscoveryType,
+  MissionAutonomyMode,
+  MissionScheduleCadence,
+  MissionStageId,
+  MonetizationPlan,
   PipelineConfig,
+  ResearchOpportunity,
+  SelfLearningCadence,
+  SourcePlatform,
   StrategyRecommendation,
   StreamerPolicyEntry,
   SupportedLocale,
+  UiMode,
+  VodMoment,
+  VoiceProfileId,
   WorkspaceState,
   WorkspaceTab,
 } from "./types";
@@ -17,11 +37,15 @@ import { IngestDeck } from "./components/IngestDeck";
 import { VerticalStudioView } from "./components/VerticalStudioView";
 import { VodHighlightsDeck } from "./components/VodHighlightsDeck";
 import { TemplatesBrollDeck } from "./components/TemplatesBrollDeck";
+import { AssetDiscoveryView } from "./components/AssetDiscoveryView";
 import { DistributionDeck } from "./components/DistributionDeck";
 import { AiDirectorDeck } from "./components/AiDirectorDeck";
+import { PerformanceMonitorView } from "./components/PerformanceMonitorView";
 import { GitOpsView } from "./components/GitOpsView";
 import { PresentationDeck } from "./components/PresentationDeck";
 import { AiCommandBar } from "./components/AiCommandBar";
+import { SettingsHotkeysModal } from "./components/SettingsHotkeysModal";
+import { DEFAULT_SLANG_DICTIONARY, resolveHotkeys } from "./utils/hotkeys";
 
 interface Notice {
   type: "success" | "error";
@@ -32,13 +56,29 @@ export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("studio");
+  const [uiMode, setUiMode] = useState<UiMode>(() => {
+    try {
+      return localStorage.getItem("clipforge_ui_mode") === "easy" ? "easy" : "advanced";
+    } catch {
+      return "advanced";
+    }
+  });
   const [selectedClipId, setSelectedClipId] = useState<string>("");
   const [isDark, setIsDark] = useState(true);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [auditingClipId, setAuditingClipId] = useState<string | null>(null);
   const [generatingHooksClipId, setGeneratingHooksClipId] = useState<string | null>(null);
+  const [isGradingHook, setIsGradingHook] = useState(false);
+  const [isCalculatingHealth, setIsCalculatingHealth] = useState(false);
+  const [isBuildingFaceless, setIsBuildingFaceless] = useState(false);
   const [isSuggestingBroll, setIsSuggestingBroll] = useState(false);
+  const [isGeneratingVoiceover, setIsGeneratingVoiceover] = useState(false);
+  const [isDraftingScript, setIsDraftingScript] = useState(false);
+  const [isGeneratingSeoFor, setIsGeneratingSeoFor] = useState<string | null>(null);
+  const [isResearching, setIsResearching] = useState(false);
+  const [isChattingAgent, setIsChattingAgent] = useState(false);
   const [translatingLocale, setTranslatingLocale] = useState<SupportedLocale | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isBatchRunning, setIsBatchRunning] = useState(false);
@@ -47,9 +87,38 @@ export default function App() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isAutoScheduling, setIsAutoScheduling] = useState(false);
   const [isDirecting, setIsDirecting] = useState(false);
+  const [isFetchingTrends, setIsFetchingTrends] = useState(false);
+  const [isStartingMission, setIsStartingMission] = useState(false);
+  const [isAdvancingMission, setIsAdvancingMission] = useState(false);
+  const [isScanningNews, setIsScanningNews] = useState(false);
+  const [isScanningSentiment, setIsScanningSentiment] = useState(false);
+  const [isApplyingSentiment, setIsApplyingSentiment] = useState(false);
+  const [isDiscoveringAssets, setIsDiscoveringAssets] = useState(false);
+  const [isInjectingAsset, setIsInjectingAsset] = useState(false);
+  const [isOptimizingMonetization, setIsOptimizingMonetization] = useState(false);
+  const [isProjectingRevenue, setIsProjectingRevenue] = useState(false);
+  const [isRunningSelfLearn, setIsRunningSelfLearn] = useState(false);
+  const [isCrawlingKnowledge, setIsCrawlingKnowledge] = useState(false);
+  const [adoptingDiscoveryId, setAdoptingDiscoveryId] = useState<string | null>(null);
+  const [autopilotSubTab, setAutopilotSubTab] = useState<"mission" | "monetization" | "agent" | "compute" | "voice">("mission");
   const [directorHistory, setDirectorHistory] = useState<DirectorRunResult[]>([]);
   const [recommendation, setRecommendation] = useState<StrategyRecommendation | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+
+  function handleToggleUiMode(nextMode: UiMode) {
+    setUiMode(nextMode);
+    try {
+      localStorage.setItem("clipforge_ui_mode", nextMode);
+    } catch {
+      // Ignore storage errors
+    }
+    if (
+      nextMode === "easy" &&
+      !["studio", "ingest", "performance", "autopilot", "distribution"].includes(activeTab)
+    ) {
+      setActiveTab("studio");
+    }
+  }
 
   useEffect(() => {
     const root = document.documentElement;
@@ -65,6 +134,7 @@ export default function App() {
         setCommandBarOpen((prev) => !prev);
       } else if (e.key === "Escape") {
         setCommandBarOpen(false);
+        setSettingsOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -81,6 +151,9 @@ export default function App() {
       if (!res.ok) throw new Error(`Failed to load workspace (${res.status})`);
       const data = (await res.json()) as WorkspaceState;
       setWorkspace(data);
+      if (Array.isArray(data.directorHistory) && data.directorHistory.length > 0) {
+        setDirectorHistory(data.directorHistory);
+      }
       if (!selectedClipId && data.clips.length > 0) {
         setSelectedClipId(data.clips[0].id);
       }
@@ -132,9 +205,10 @@ export default function App() {
   async function handleAddClip(payload: {
     title: string;
     streamerName: string;
-    sourcePlatform: "Twitch" | "Kick" | "YouTube Live";
+    sourcePlatform: SourcePlatform;
     sourceUrl: string;
     gameCategory: string;
+    niche?: ContentNiche;
     views: number;
     ageMinutes: number;
     durationSec: number;
@@ -437,6 +511,78 @@ export default function App() {
     }
   }
 
+  async function handleFetchTrends(focus: string) {
+    setIsFetchingTrends(true);
+    try {
+      const res = await fetch("/api/trendpulse/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ focus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "TrendPulse scan failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              trendPulse: data.trendPulse,
+              telemetry: data.telemetry || prev.telemetry,
+            }
+          : prev
+      );
+      showNotice(
+        "success",
+        `TrendPulse loaded ${data.trendPulse?.topics?.length || 0} live Twitch gaming trends via Google Search.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "TrendPulse scan failed.");
+    } finally {
+      setIsFetchingTrends(false);
+    }
+  }
+
+  async function handleToggleTrendPin(topicId: string) {
+    try {
+      const res = await fetch("/api/trendpulse/pin", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topicId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update TrendPulse priority.");
+      setWorkspace((prev) => (prev ? { ...prev, trendPulse: data.trendPulse } : prev));
+      showNotice("success", "Updated AI Director TrendPulse clipping priorities.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not pin trend.");
+    }
+  }
+
+  async function handleTrackTrendGame(gameName: string) {
+    if (!workspace) return;
+    const exists = workspace.config.targetGames.some(
+      (g) => g.name.trim().toLowerCase() === gameName.trim().toLowerCase()
+    );
+    if (exists) {
+      showNotice("success", `"${gameName}" is already tracked in pipeline.config.json.`);
+      return;
+    }
+    const nextConfig: PipelineConfig = {
+      ...workspace.config,
+      targetGames: [
+        {
+          name: gameName,
+          twitchGameId: `trend_${Date.now().toString(36)}`,
+          minViews: 2000,
+          maxClipAgeHours: 12,
+          enabled: true,
+        },
+        ...workspace.config.targetGames,
+      ],
+    };
+    await handleSaveConfig(nextConfig);
+  }
+
   async function handleExecuteDirector(instruction: string) {
     setIsDirecting(true);
     try {
@@ -461,6 +607,352 @@ export default function App() {
       showNotice("error", err instanceof Error ? err.message : "AI Director failed.");
     } finally {
       setIsDirecting(false);
+    }
+  }
+
+  async function handleGenerateVoiceover(
+    clipId: string,
+    payload: {
+      voiceName: VoiceProfileId;
+      style: string;
+      script: string;
+      duckOriginalDb: number;
+      loudnessCompliance: boolean;
+      targetLufs: number;
+      highPassHz: number;
+      voicePresenceEq: boolean;
+      deEsserEnabled: boolean;
+      breathTrimEnabled: boolean;
+      paceMultiplier: number;
+    }
+  ) {
+    setIsGeneratingVoiceover(true);
+    try {
+      const res = await fetch("/api/ai/voiceover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipId, ...payload }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Voiceover TTS generation failed.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, clips: prev.clips.map((c) => (c.id === clipId ? data.clip : c)) } : prev
+      );
+      await handleRefreshTelemetry();
+      const lufsMsg =
+        typeof data.voiceover?.measuredLufs === "number"
+          ? ` (${data.voiceover.measuredLufs.toFixed(1)} LUFS · ${data.voiceover.truePeakDbTp?.toFixed(1) ?? "-1.0"} dBTP)`
+          : "";
+      showNotice("success", `Generated ${payload.voiceName} .WAV voiceover${lufsMsg}.`);
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Voiceover TTS generation failed.");
+    } finally {
+      setIsGeneratingVoiceover(false);
+    }
+  }
+
+  async function handleStartMission(payload: {
+    prompt: string;
+    nicheFocus: string;
+    autonomyMode: MissionAutonomyMode;
+    scheduleCadence: MissionScheduleCadence;
+  }) {
+    setIsStartingMission(true);
+    try {
+      const res = await fetch("/api/ai/mission/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to launch autonomous mission.");
+      if (data.workspace) {
+        setWorkspace(data.workspace);
+      } else if (data.mission) {
+        setWorkspace((prev) => (prev ? { ...prev, activeMission: data.mission } : prev));
+      }
+      if (data.mission?.activeClipId) {
+        setSelectedClipId(data.mission.activeClipId);
+      }
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Mission ready: ranked ${data.mission?.ideas?.length || 10} live video ideas (${payload.autonomyMode}).`
+      );
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Failed to launch autonomous mission.");
+    } finally {
+      setIsStartingMission(false);
+    }
+  }
+
+  async function handleAdvanceMission(payload: {
+    mode: "step" | "until-gate" | "full-auto";
+    selectedIdeaId?: string;
+  }) {
+    setIsAdvancingMission(true);
+    try {
+      const res = await fetch("/api/ai/mission/advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, approveCurrent: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Mission advance failed.");
+      if (data.workspace) {
+        setWorkspace(data.workspace);
+      } else if (data.mission) {
+        setWorkspace((prev) => (prev ? { ...prev, activeMission: data.mission } : prev));
+      }
+      if (data.mission?.activeClipId) {
+        setSelectedClipId(data.mission.activeClipId);
+      }
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        data.mission?.status === "completed"
+          ? "Autonomous 12-stage mission completed end-to-end & learnings saved."
+          : `Advanced ${data.ranCount || 1} stage(s) in autonomous pipeline.`
+      );
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Mission advance failed.");
+    } finally {
+      setIsAdvancingMission(false);
+    }
+  }
+
+  async function handleUpdateMissionConfig(payload: {
+    autonomyMode?: MissionAutonomyMode;
+    scheduleCadence?: MissionScheduleCadence;
+    selectedIdeaId?: string;
+    toggleGateStageId?: MissionStageId;
+  }) {
+    try {
+      const res = await fetch("/api/ai/mission/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update mission configuration.");
+      setWorkspace((prev) => (prev ? { ...prev, activeMission: data.mission } : prev));
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Failed to update mission configuration.");
+    }
+  }
+
+  async function handleScanIndustryNews(focus: string) {
+    setIsScanningNews(true);
+    try {
+      const res = await fetch("/api/ai/news-radar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ focus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Industry news radar scan failed.");
+      setWorkspace((prev) => (prev ? { ...prev, industryNews: data.industryNews } : prev));
+      await handleRefreshTelemetry();
+      showNotice("success", `Synced ${data.industryNews?.items?.length || 0} live news, stream, video & AI tool updates.`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Industry news radar scan failed.");
+    } finally {
+      setIsScanningNews(false);
+    }
+  }
+
+  async function handleFeedNewsToAgent(itemId?: string) {
+    try {
+      const res = await fetch("/api/ai/news-radar/feed-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to feed intel to AI agent.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              industryNews: data.industryNews || prev.industryNews,
+              agentMessages: data.agentMessages || prev.agentMessages,
+            }
+          : prev
+      );
+      showNotice("success", "Synced live industry intel into AI Agent planning memory.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Failed to feed intel to AI agent.");
+    }
+  }
+
+  async function handleDraftVoiceoverScript(clipId: string, tone: string): Promise<string | null> {
+    setIsDraftingScript(true);
+    try {
+      const res = await fetch("/api/ai/draft-voiceover-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipId, tone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Script drafting failed.");
+      await handleRefreshTelemetry();
+      showNotice("success", `Drafted narration script via ${data.engine === "lm-studio-local" ? "LM Studio Local" : "Gemini Cloud"}.`);
+      return String(data.script || "");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Script drafting failed.");
+      return null;
+    } finally {
+      setIsDraftingScript(false);
+    }
+  }
+
+  async function handleGenerateSeo(clipId: string) {
+    setIsGeneratingSeoFor(clipId);
+    try {
+      const res = await fetch("/api/ai/generate-seo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "SEO generation failed.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, clips: prev.clips.map((c) => (c.id === clipId ? data.clip : c)) } : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Generated 6-platform SEO pack via ${data.engine === "lm-studio-local" ? "LM Studio Local" : "Gemini Cloud"}.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "SEO generation failed.");
+    } finally {
+      setIsGeneratingSeoFor(null);
+    }
+  }
+
+  async function handleRunResearch(focus: string) {
+    setIsResearching(true);
+    try {
+      const res = await fetch("/api/research/opportunities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ focus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Live research scan failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              researchOpportunities: data.opportunities || [],
+              telemetry: data.telemetry || prev.telemetry,
+            }
+          : prev
+      );
+      showNotice("success", `Discovered ${data.opportunities?.length || 0} high-upside opportunities via Google Search.`);
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Live research scan failed.");
+    } finally {
+      setIsResearching(false);
+    }
+  }
+
+  async function handleCreateClipFromOpportunity(opp: ResearchOpportunity) {
+    const res = await fetch("/api/clips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: opp.topic,
+        streamerName: opp.source,
+        sourcePlatform: opp.niche === "podcasts" ? "YouTube Podcast" : opp.niche === "tech-ai" ? "X / News" : "Twitch",
+        sourceUrl: "",
+        gameCategory: opp.niche.toUpperCase(),
+        niche: opp.niche,
+        views: 12000,
+        ageMinutes: 25,
+        durationSec: 26,
+        duplicateCrossPosts: 0,
+        transcript: opp.suggestedScript,
+      }),
+    });
+    const created = await res.json();
+    if (!res.ok) {
+      showNotice("error", created.error || "Could not create clip from opportunity.");
+      return;
+    }
+    // Apply the researched hook banner & template immediately
+    await fetch(`/api/clips/${encodeURIComponent(created.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        niche: opp.niche,
+        layout: {
+          ...created.layout,
+          template: opp.recommendedTemplate,
+          hookBannerText: opp.hookBlueprint,
+          showHookBanner: true,
+        },
+      }),
+    });
+    await loadWorkspace();
+    setSelectedClipId(created.id);
+    setActiveTab("studio");
+    showNotice("success", `Created "${opp.topic}" and opened Studio Voiceover Engine.`);
+  }
+
+  async function handleSendAgentMessage(message: string) {
+    setIsChattingAgent(true);
+    try {
+      const res = await fetch("/api/agent/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ops Agent chat failed.");
+      if (data.workspace) {
+        setWorkspace(data.workspace);
+      }
+      showNotice(
+        "success",
+        `Ops Agent responded via ${data.message?.engine === "lm-studio-local" ? "LM Studio Local" : "Gemini Cloud"}.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Ops Agent chat failed.");
+    } finally {
+      setIsChattingAgent(false);
+    }
+  }
+
+  async function handleTestLocalLlm(baseUrl: string) {
+    try {
+      const res = await fetch("/api/local-llm/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "LM Studio ping failed.");
+      return data;
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "LM Studio ping failed.");
+      return null;
+    }
+  }
+
+  async function handleFetchWorkerPack() {
+    try {
+      const res = await fetch("/api/deploy/worker-pack");
+      if (!res.ok) throw new Error("Could not load worker deployment pack.");
+      return await res.json();
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not load worker pack.");
+      return null;
     }
   }
 
@@ -518,14 +1010,499 @@ export default function App() {
     await handleSaveConfig(nextConfig);
   }
 
+  async function handleBatchApplyTemplate(payload: {
+    clipIds: string[];
+    template: LayoutTemplate;
+    captionStyle: CaptionStylePreset;
+    captionFont: CaptionFontFamily;
+    captionHighlightColor: string;
+    captionAutoEmoji: boolean;
+    hookBannerPosition: HookBannerPosition;
+    watermarkHandle?: string;
+  }) {
+    try {
+      const res = await fetch("/api/clips/batch-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Batch template apply failed.");
+      await loadWorkspace();
+      showNotice(
+        "success",
+        `Applied ${payload.template} + ${payload.captionFont} + ${payload.hookBannerPosition} banner to ${data.updatedCount} clip(s).`
+      );
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Batch template apply failed.");
+    }
+  }
+
+  async function handleGradeHookRetention(clipId: string) {
+    setIsGradingHook(true);
+    try {
+      const res = await fetch("/api/ai/hook-retention-grade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Hook retention grading failed.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, clips: prev.clips.map((c) => (c.id === clipId ? data.clip : c)) } : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice("success", `Hook Grader scored ${data.hookGrade?.overallScore ?? 0}/100 with predicted retention curve.`);
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Hook retention grading failed.");
+    } finally {
+      setIsGradingHook(false);
+    }
+  }
+
+  async function handleCalculateClipHealth(clipId: string) {
+    setIsCalculatingHealth(true);
+    try {
+      const res = await fetch("/api/ai/director/clip-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "AI Director Clip Health calculation failed.");
+      if (data.workspace) {
+        setWorkspace(data.workspace);
+      } else if (data.clip) {
+        setWorkspace((prev) =>
+          prev ? { ...prev, clips: prev.clips.map((c) => (c.id === clipId ? data.clip : c)) } : prev
+        );
+      }
+      if (data.directorRun) {
+        setDirectorHistory((prev) => [data.directorRun as DirectorRunResult, ...prev.slice(0, 14)]);
+      }
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `AI Director scored Clip Health: ${data.clipHealth?.overall ?? 0}/100 (${data.clipHealth?.grade || "Scored"}).`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "AI Director Clip Health calculation failed.");
+    } finally {
+      setIsCalculatingHealth(false);
+    }
+  }
+
+  async function handlePromptSearchVod(payload: {
+    vodId: string;
+    query: string;
+    padContextArc: boolean;
+  }): Promise<VodMoment[]> {
+    try {
+      const res = await fetch("/api/ai/vod-prompt-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "VOD prompt search failed.");
+      await handleRefreshTelemetry();
+      showNotice("success", `Found ${data.moments?.length || 0} moment(s) matching "${payload.query}".`);
+      return (data.moments || []) as VodMoment[];
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "VOD prompt search failed.");
+      return [];
+    }
+  }
+
+  async function handleBuildFacelessShort(payload: {
+    topic: string;
+    niche: ContentNiche;
+    facelessStyle: "authority-tech" | "reddit-debate" | "mystery-doc" | "split-loop";
+    sourceText: string;
+  }) {
+    setIsBuildingFaceless(true);
+    try {
+      const res = await fetch("/api/ai/faceless-build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Faceless builder failed.");
+      setWorkspace((prev) => (prev ? { ...prev, clips: [data.clip, ...prev.clips] } : prev));
+      setSelectedClipId(data.clip.id);
+      setActiveTab("studio");
+      await handleRefreshTelemetry();
+      showNotice("success", `Built editorial "${payload.facelessStyle}" short and opened Studio.`);
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Faceless builder failed.");
+    } finally {
+      setIsBuildingFaceless(false);
+    }
+  }
+
+  async function handleDryRunSyndication(ruleId: string) {
+    try {
+      const res = await fetch("/api/syndication/dry-run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ruleId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Syndication pre-flight audit failed.");
+      showNotice("success", data.summary || "Syndication Pre-Flight audit completed.");
+      return data;
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Syndication pre-flight audit failed.");
+      return null;
+    }
+  }
+
+  async function handleScanViralSentiment(niche: ContentNiche, topicQuery?: string) {
+    setIsScanningSentiment(true);
+    try {
+      const res = await fetch("/api/ai/viral-sentiment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ niche, topicQuery }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Viral Sentiment scrape failed.");
+      setWorkspace((prev) => (prev ? { ...prev, viralSentiment: data.viralSentiment } : prev));
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Scraped live audience sentiment for ${niche} (${data.viralSentiment.overallPositivePct}% positive across ${data.viralSentiment.styleScores.length} editing styles).`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Viral Sentiment scrape failed.");
+    } finally {
+      setIsScanningSentiment(false);
+    }
+  }
+
+  async function handleApplySentimentToDirector() {
+    setIsApplyingSentiment(true);
+    try {
+      const res = await fetch("/api/ai/viral-sentiment/apply-director", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not sync sentiment to AI Director.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              viralSentiment: data.viralSentiment,
+              config: data.config || prev.config,
+              agentMessages: data.agentMessages || prev.agentMessages,
+              selfLearning: data.selfLearning || prev.selfLearning,
+            }
+          : prev
+      );
+      showNotice("success", "Synced audience editing-style sentiment feedback to AI Director & Self-Learning rules.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not sync sentiment feedback.");
+    } finally {
+      setIsApplyingSentiment(false);
+    }
+  }
+
+  async function handleDiscoverAssets(payload: {
+    query: string;
+    niche: ContentNiche | "all";
+    filter: "all" | DiscoveredAssetType;
+  }) {
+    setIsDiscoveringAssets(true);
+    try {
+      const res = await fetch("/api/ai/asset-discovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Asset discovery search failed.");
+      setWorkspace((prev) => (prev ? { ...prev, assetDiscovery: data.assetDiscovery } : prev));
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Discovered ${data.assetDiscovery.assets.length} public domain stock & meme template assets.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Asset discovery search failed.");
+    } finally {
+      setIsDiscoveringAssets(false);
+    }
+  }
+
+  async function handleSaveAsset(asset: DiscoveredAsset) {
+    try {
+      const res = await fetch("/api/assets/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(asset),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save asset.");
+      setWorkspace((prev) => (prev ? { ...prev, savedAssets: data.savedAssets } : prev));
+      showNotice("success", `Saved "${asset.title}" to Asset Vault.`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Failed to save asset.");
+    }
+  }
+
+  async function handleRemoveSavedAsset(assetId: string) {
+    try {
+      const res = await fetch(`/api/assets/${encodeURIComponent(assetId)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to remove saved asset.");
+      setWorkspace((prev) => (prev ? { ...prev, savedAssets: data.savedAssets } : prev));
+      showNotice("success", "Removed asset from vault.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Failed to remove saved asset.");
+    }
+  }
+
+  async function handleAutoInjectAsset(
+    clipId: string,
+    payload: { asset?: DiscoveredAsset; assetId?: string; mode?: "single" | "auto-blend-pack" }
+  ) {
+    setIsInjectingAsset(true);
+    try {
+      const res = await fetch(`/api/clips/${encodeURIComponent(clipId)}/auto-inject-asset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Auto-inject failed.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, clips: prev.clips.map((c) => (c.id === clipId ? data.clip : c)) } : prev
+      );
+      showNotice(
+        "success",
+        `Auto-injected ${data.injectedCount} asset cue(s) + transition SFX seamlessly into "${data.clip.title}".`
+      );
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Auto-inject failed.");
+    } finally {
+      setIsInjectingAsset(false);
+    }
+  }
+
+  async function handleUpdateMonetizationPlan(patch: Partial<MonetizationPlan>) {
+    try {
+      const res = await fetch("/api/monetization/plan", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update monetization plan.");
+      setWorkspace((prev) => (prev ? { ...prev, monetizationPlan: data.monetizationPlan } : prev));
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update monetization plan.");
+    }
+  }
+
+  async function handleOptimizeMonetization() {
+    setIsOptimizingMonetization(true);
+    try {
+      const res = await fetch("/api/ai/monetization/optimize", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "AI Monetization Playbook failed.");
+      setWorkspace((prev) => (prev ? { ...prev, monetizationPlan: data.monetizationPlan } : prev));
+      await handleRefreshTelemetry();
+      showNotice("success", "Generated AI Monetization Playbook, Sponsor Pitch & Funnel CTAs.");
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "AI Monetization Playbook failed.");
+    } finally {
+      setIsOptimizingMonetization(false);
+    }
+  }
+
+  async function handleUpdateSelfLearnConfig(patch: {
+    enabled?: boolean;
+    cadence?: SelfLearningCadence;
+    autoAdoptSafeUpgrades?: boolean;
+    focusAreas?: LearningDiscoveryType[];
+  }) {
+    try {
+      const res = await fetch("/api/self-learn/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update learning schedule.");
+      setWorkspace((prev) => (prev ? { ...prev, selfLearning: data.selfLearning } : prev));
+      showNotice("success", "Updated scheduled self-research cadence.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Failed to update learning schedule.");
+    }
+  }
+
+  async function handleRunSelfLearningCycle(customFocus?: string) {
+    setIsRunningSelfLearn(true);
+    try {
+      const res = await fetch("/api/ai/self-learn/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customFocus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Self-learning research cycle failed.");
+      setWorkspace((prev) => (prev ? { ...prev, selfLearning: data.selfLearning } : prev));
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Completed Self-Learning Cycle #${data.selfLearning.totalCyclesRun}: surfaced fresh platform, source & monetization upgrades.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Self-learning cycle failed.");
+    } finally {
+      setIsRunningSelfLearn(false);
+    }
+  }
+
+  async function handleAdoptDiscovery(discoveryId: string) {
+    setAdoptingDiscoveryId(discoveryId);
+    try {
+      const res = await fetch("/api/ai/self-learn/adopt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discoveryId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not adopt upgrade.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              selfLearning: data.selfLearning,
+              config: data.config || prev.config,
+              monetizationPlan: data.monetizationPlan || prev.monetizationPlan,
+              agentMessages: data.agentMessages || prev.agentMessages,
+            }
+          : prev
+      );
+      showNotice("success", data.summary || "Adopted self-learning upgrade into ClipForge.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not adopt upgrade.");
+    } finally {
+      setAdoptingDiscoveryId(null);
+    }
+  }
+
+  async function handleProjectRevenue(payload?: { horizonMonths?: number; dailyPostsTarget?: number }) {
+    setIsProjectingRevenue(true);
+    try {
+      const res = await fetch("/api/ai/monetization/project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload || {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Revenue projection failed.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, monetizationPlan: data.monetizationPlan } : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Projected ${data.revenueProjection.horizonMonths}-month revenue using live CPM trends ($${data.revenueProjection.projectedMonth6BaseUsd.toLocaleString()}/mo Base Case).`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Revenue projection failed.");
+    } finally {
+      setIsProjectingRevenue(false);
+    }
+  }
+
+  async function handleUpdateKnowledgeConfig(patch: {
+    enabled?: boolean;
+    cadence?: KnowledgeCrawlCadence;
+    autoDraftOpportunities?: boolean;
+    feeds?: KnowledgeSourceFeed[];
+  }) {
+    try {
+      const res = await fetch("/api/knowledge/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update Knowledge Acquisition config.");
+      setWorkspace((prev) => (prev ? { ...prev, knowledgeAcquisition: data.knowledgeAcquisition } : prev));
+      showNotice("success", "Updated recurring Knowledge Acquisition crawler schedule & feeds.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update Knowledge Acquisition config.");
+    }
+  }
+
+  async function handleRunKnowledgeCrawl(customTopic?: string) {
+    setIsCrawlingKnowledge(true);
+    try {
+      const res = await fetch("/api/ai/knowledge/crawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customTopic }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Knowledge Acquisition crawl failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              knowledgeAcquisition: data.knowledgeAcquisition,
+              researchOpportunities: data.researchOpportunities || prev.researchOpportunities,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Crawled creator newsletters & AI-tool updates: auto-drafted ${data.drafted?.length || 3} new Opportunity card(s) in Ingest.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Knowledge Acquisition crawl failed.");
+    } finally {
+      setIsCrawlingKnowledge(false);
+    }
+  }
+
+  const resolvedHotkeys = useMemo(
+    () => resolveHotkeys(workspace?.config.hotkeys),
+    [workspace?.config.hotkeys]
+  );
+
+  const slangDictionary = useMemo(
+    () =>
+      workspace?.config.slangDictionary && workspace.config.slangDictionary.length > 0
+        ? workspace.config.slangDictionary
+        : DEFAULT_SLANG_DICTIONARY,
+    [workspace?.config.slangDictionary]
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F6F7F9] dark:bg-[#0A0B0E] text-[#0F172A] dark:text-[#F1F5F9]">
       <TopBar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
+        uiMode={uiMode}
+        onToggleUiMode={handleToggleUiMode}
         isDark={isDark}
         onToggleTheme={() => setIsDark((d) => !d)}
         onOpenCommandBar={() => setCommandBarOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         onRunPipeline={() => handleDispatchPipeline(true)}
         isRunningPipeline={isRunningPipeline}
         pendingCount={counts.pendingQa}
@@ -571,20 +1548,34 @@ export default function App() {
               <VerticalStudioView
                 clips={workspace.clips}
                 selectedClipId={selectedClipId}
+                uiMode={uiMode}
+                hotkeys={resolvedHotkeys}
+                slangDictionary={slangDictionary}
                 onSelectClip={setSelectedClipId}
                 onUpdateClip={handleUpdateClip}
                 onAuditClip={handleAuditClip}
                 onGenerateHooks={handleGenerateHooks}
+                onGradeHookRetention={handleGradeHookRetention}
+                onCalculateClipHealth={handleCalculateClipHealth}
                 onSuggestBroll={handleSuggestBroll}
                 onTranslateClip={handleTranslateClip}
+                onGenerateVoiceover={handleGenerateVoiceover}
+                onDraftVoiceoverScript={handleDraftVoiceoverScript}
                 auditingClipId={auditingClipId}
                 generatingHooksClipId={generatingHooksClipId}
+                isGradingHook={isGradingHook}
+                isCalculatingHealth={isCalculatingHealth}
                 isSuggestingBroll={isSuggestingBroll}
+                isGeneratingVoiceover={isGeneratingVoiceover}
+                isDraftingScript={isDraftingScript}
                 translatingLocale={translatingLocale}
                 onSendToQueue={async (id) => {
                   await handleUpdateClip(id, { publishStatus: "ready" });
                   setActiveTab("distribution");
                 }}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onSwitchToAdvanced={() => handleToggleUiMode("advanced")}
+                onNotify={showNotice}
               />
             )}
 
@@ -592,6 +1583,12 @@ export default function App() {
               <IngestDeck
                 clips={workspace.clips}
                 config={workspace.config}
+                uiMode={uiMode}
+                researchOpportunities={workspace.researchOpportunities || []}
+                knowledgeAcquisition={workspace.knowledgeAcquisition}
+                isResearching={isResearching}
+                isCrawlingKnowledge={isCrawlingKnowledge}
+                isBuildingFaceless={isBuildingFaceless}
                 selectedClipId={selectedClipId}
                 auditingClipId={auditingClipId}
                 generatingHooksClipId={generatingHooksClipId}
@@ -599,6 +1596,11 @@ export default function App() {
                 isBatchRunning={isBatchRunning}
                 onSelectClip={setSelectedClipId}
                 onScanRadar={handleScanRadar}
+                onRunResearch={handleRunResearch}
+                onUpdateKnowledgeConfig={handleUpdateKnowledgeConfig}
+                onRunKnowledgeCrawl={handleRunKnowledgeCrawl}
+                onCreateClipFromOpportunity={handleCreateClipFromOpportunity}
+                onBuildFacelessShort={handleBuildFacelessShort}
                 onAuditClip={handleAuditClip}
                 onGenerateHooks={handleGenerateHooks}
                 onOpenInStudio={(id) => {
@@ -618,6 +1620,7 @@ export default function App() {
                 vodSessions={workspace.vodSessions || []}
                 clips={workspace.clips}
                 onAnalyzeVod={handleAnalyzeVod}
+                onPromptSearchVod={handlePromptSearchVod}
                 onExtractMoment={handleExtractVodMoment}
                 isAnalyzingVod={isAnalyzingVod}
               />
@@ -628,15 +1631,42 @@ export default function App() {
                 clips={workspace.clips}
                 selectedClipId={selectedClipId}
                 config={workspace.config}
+                discoveredAssets={workspace.assetDiscovery?.assets || []}
+                savedAssets={workspace.savedAssets || []}
+                isInjectingAsset={isInjectingAsset}
                 onSelectClip={setSelectedClipId}
                 onUpdateClip={handleUpdateClip}
+                onBatchApplyTemplate={handleBatchApplyTemplate}
                 onSaveConfig={handleSaveConfig}
                 onSuggestBroll={handleSuggestBroll}
+                onAutoInjectAsset={handleAutoInjectAsset}
+                onOpenAssetDiscovery={() => setActiveTab("assets")}
                 isSuggestingBroll={isSuggestingBroll}
                 onOpenInStudio={(id) => {
                   setSelectedClipId(id);
                   setActiveTab("studio");
                 }}
+              />
+            )}
+
+            {activeTab === "assets" && (
+              <AssetDiscoveryView
+                clips={workspace.clips}
+                selectedClipId={selectedClipId}
+                assetDiscovery={workspace.assetDiscovery}
+                savedAssets={workspace.savedAssets || []}
+                isDiscoveringAssets={isDiscoveringAssets}
+                isInjectingAsset={isInjectingAsset}
+                onSelectClip={setSelectedClipId}
+                onDiscoverAssets={handleDiscoverAssets}
+                onSaveAsset={handleSaveAsset}
+                onRemoveSavedAsset={handleRemoveSavedAsset}
+                onAutoInjectAsset={handleAutoInjectAsset}
+                onOpenInStudio={(id) => {
+                  setSelectedClipId(id);
+                  setActiveTab("studio");
+                }}
+                onJumpToTemplates={() => setActiveTab("templates")}
               />
             )}
 
@@ -653,6 +1683,8 @@ export default function App() {
                   setActiveTab("studio");
                 }}
                 onUpdateChannelFleet={handleUpdateChannelFleet}
+                onSaveConfig={handleSaveConfig}
+                onDryRunSyndication={handleDryRunSyndication}
                 onRunOptimizer={handleRunOptimizer}
                 onAutoScheduleFleet={handleAutoScheduleFleet}
                 onApplyStrategyPatch={handleApplyStrategyPatch}
@@ -662,12 +1694,93 @@ export default function App() {
 
             {activeTab === "autopilot" && (
               <AiDirectorDeck
+                key={autopilotSubTab}
                 config={workspace.config}
+                uiMode={uiMode}
                 directorHistory={directorHistory}
+                agentMessages={workspace.agentMessages || []}
+                trendPulse={workspace.trendPulse}
+                activeMission={workspace.activeMission}
+                industryNews={workspace.industryNews}
+                monetizationPlan={workspace.monetizationPlan}
+                selfLearning={workspace.selfLearning}
+                knowledgeAcquisition={workspace.knowledgeAcquisition}
+                initialSubTab={autopilotSubTab}
+                isStartingMission={isStartingMission}
+                isAdvancingMission={isAdvancingMission}
+                isScanningNews={isScanningNews}
+                isOptimizingMonetization={isOptimizingMonetization}
+                isProjectingRevenue={isProjectingRevenue}
+                isRunningSelfLearn={isRunningSelfLearn}
+                isCrawlingKnowledge={isCrawlingKnowledge}
+                adoptingDiscoveryId={adoptingDiscoveryId}
+                isFetchingTrends={isFetchingTrends}
                 isDirecting={isDirecting}
+                isChattingAgent={isChattingAgent}
+                onStartMission={handleStartMission}
+                onAdvanceMission={handleAdvanceMission}
+                onUpdateMissionConfig={handleUpdateMissionConfig}
+                onScanIndustryNews={handleScanIndustryNews}
+                onFeedNewsToAgent={handleFeedNewsToAgent}
+                onUpdateMonetizationPlan={handleUpdateMonetizationPlan}
+                onOptimizeMonetization={handleOptimizeMonetization}
+                onProjectRevenue={handleProjectRevenue}
+                onUpdateSelfLearnConfig={handleUpdateSelfLearnConfig}
+                onRunSelfLearningCycle={handleRunSelfLearningCycle}
+                onAdoptDiscovery={handleAdoptDiscovery}
+                onRunKnowledgeCrawl={handleRunKnowledgeCrawl}
+                onOpenIngestOpportunities={() => setActiveTab("ingest")}
+                onOpenClipInStudio={(id) => {
+                  setSelectedClipId(id);
+                  setActiveTab("studio");
+                }}
+                onFetchTrends={handleFetchTrends}
+                onToggleTrendPin={handleToggleTrendPin}
+                onTrackTrendGame={handleTrackTrendGame}
                 onExecuteDirector={handleExecuteDirector}
+                onSendAgentMessage={handleSendAgentMessage}
                 onSaveConfig={handleSaveConfig}
                 onAnalyzeCompetitor={handleAnalyzeCompetitor}
+                onTestLocalLlm={handleTestLocalLlm}
+                onFetchWorkerPack={handleFetchWorkerPack}
+              />
+            )}
+
+            {activeTab === "performance" && (
+              <PerformanceMonitorView
+                clips={workspace.clips}
+                config={workspace.config}
+                uiMode={uiMode}
+                viralSentiment={workspace.viralSentiment}
+                isScanningSentiment={isScanningSentiment}
+                isApplyingSentiment={isApplyingSentiment}
+                isGeneratingSeoFor={isGeneratingSeoFor}
+                onGenerateSeo={handleGenerateSeo}
+                onScanViralSentiment={handleScanViralSentiment}
+                onApplySentimentToDirector={handleApplySentimentToDirector}
+                onOpenInStudio={(id) => {
+                  setSelectedClipId(id);
+                  setActiveTab("studio");
+                }}
+                onAskAgent={async (prompt) => {
+                  setAutopilotSubTab("agent");
+                  setActiveTab("autopilot");
+                  await handleSendAgentMessage(prompt);
+                }}
+                onLaunchMissionForNiche={async (nicheLabel) => {
+                  setAutopilotSubTab("mission");
+                  setActiveTab("autopilot");
+                  await handleStartMission({
+                    prompt: `Give me the top 10 highest-ROI viral short-form video ideas in ${nicheLabel} based on our Revenue Attribution matrix`,
+                    nicheFocus: nicheLabel,
+                    autonomyMode: "approval-gates",
+                    scheduleCadence: "daily-0900",
+                  });
+                }}
+                onOpenMonetizationHub={() => {
+                  setAutopilotSubTab("monetization");
+                  setActiveTab("autopilot");
+                }}
               />
             )}
 
@@ -690,6 +1803,7 @@ export default function App() {
                 config={workspace.config}
                 telemetry={workspace.telemetry || []}
                 onJumpToTab={setActiveTab}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
             )}
           </>
@@ -708,6 +1822,15 @@ export default function App() {
         }}
         onExecuteDirector={handleExecuteDirector}
       />
+
+      {workspace && (
+        <SettingsHotkeysModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          config={workspace.config}
+          onSaveConfig={handleSaveConfig}
+        />
+      )}
     </div>
   );
 }

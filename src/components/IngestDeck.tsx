@@ -16,18 +16,42 @@ import {
   Wand2,
   FileJson,
   AlertTriangle,
+  Compass,
+  Mic,
+  Newspaper,
+  Clock,
+  ExternalLink,
 } from "lucide-react";
-import type { ClipItem, PipelineConfig, QaStatus, StreamerPolicyEntry } from "../types";
+import type {
+  ClipItem,
+  ContentNiche,
+  KnowledgeAcquisitionState,
+  KnowledgeCrawlCadence,
+  KnowledgeSourceFeed,
+  PipelineConfig,
+  QaStatus,
+  ResearchOpportunity,
+  SourcePlatform,
+  StreamerPolicyEntry,
+  UiMode,
+} from "../types";
 import {
   computeSaturationLevel,
   computeTitleSimilarity,
   computeViewsPerMinute,
   formatCompactNumber,
 } from "../utils/ffmpeg";
+import { computeOutlierMultiplier } from "../utils/hotkeys";
 
 interface IngestDeckProps {
   clips: ClipItem[];
   config: PipelineConfig;
+  uiMode: UiMode;
+  researchOpportunities: ResearchOpportunity[];
+  knowledgeAcquisition?: KnowledgeAcquisitionState;
+  isResearching: boolean;
+  isCrawlingKnowledge?: boolean;
+  isBuildingFaceless: boolean;
   selectedClipId: string;
   auditingClipId: string | null;
   generatingHooksClipId: string | null;
@@ -35,6 +59,21 @@ interface IngestDeckProps {
   isBatchRunning: boolean;
   onSelectClip: (clipId: string) => void;
   onScanRadar: () => void;
+  onRunResearch: (focus: string) => Promise<void>;
+  onUpdateKnowledgeConfig?: (patch: {
+    enabled?: boolean;
+    cadence?: KnowledgeCrawlCadence;
+    autoDraftOpportunities?: boolean;
+    feeds?: KnowledgeSourceFeed[];
+  }) => Promise<void>;
+  onRunKnowledgeCrawl?: (customTopic?: string) => Promise<void>;
+  onCreateClipFromOpportunity: (opp: ResearchOpportunity) => Promise<void>;
+  onBuildFacelessShort: (payload: {
+    topic: string;
+    niche: ContentNiche;
+    facelessStyle: "authority-tech" | "reddit-debate" | "mystery-doc" | "split-loop";
+    sourceText: string;
+  }) => Promise<void>;
   onAuditClip: (clipId: string) => void;
   onGenerateHooks: (clipId: string) => void;
   onOpenInStudio: (clipId: string) => void;
@@ -42,9 +81,10 @@ interface IngestDeckProps {
   onAddClip: (payload: {
     title: string;
     streamerName: string;
-    sourcePlatform: "Twitch" | "Kick" | "YouTube Live";
+    sourcePlatform: SourcePlatform;
     sourceUrl: string;
     gameCategory: string;
+    niche: ContentNiche;
     views: number;
     ageMinutes: number;
     durationSec: number;
@@ -79,6 +119,12 @@ function MediaThumb({ src, alt }: { src: string; alt: string }) {
 export function IngestDeck({
   clips,
   config,
+  uiMode,
+  researchOpportunities,
+  knowledgeAcquisition,
+  isResearching,
+  isCrawlingKnowledge = false,
+  isBuildingFaceless,
   selectedClipId,
   auditingClipId,
   generatingHooksClipId,
@@ -86,6 +132,11 @@ export function IngestDeck({
   isBatchRunning,
   onSelectClip,
   onScanRadar,
+  onRunResearch,
+  onUpdateKnowledgeConfig,
+  onRunKnowledgeCrawl,
+  onCreateClipFromOpportunity,
+  onBuildFacelessShort,
   onAuditClip,
   onGenerateHooks,
   onOpenInStudio,
@@ -95,12 +146,26 @@ export function IngestDeck({
   onUpdateStreamerPolicies,
   onNotify,
 }: IngestDeckProps) {
+  const [deckMode, setDeckMode] = useState<"research" | "faceless" | "bin">(uiMode === "easy" ? "research" : "bin");
+  const [researchFocus, setResearchFocus] = useState(
+    "High-RPM viral short-form opportunities across Gaming, AI/Tech, Podcasts & Faceless Docs"
+  );
+  const [nicheFilter, setNicheFilter] = useState<"all" | ContentNiche>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | QaStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [buildingOppId, setBuildingOppId] = useState<string | null>(null);
+
+  // Faceless Story & Split-Loop Studio form
+  const [facelessTopic, setFacelessTopic] = useState("");
+  const [facelessNiche, setFacelessNiche] = useState<ContentNiche>("tech-ai");
+  const [facelessStyle, setFacelessStyle] = useState<
+    "authority-tech" | "reddit-debate" | "mystery-doc" | "split-loop"
+  >("authority-tech");
+  const [facelessSourceText, setFacelessSourceText] = useState("");
 
   const [newPolicyHandle, setNewPolicyHandle] = useState("");
   const [newPolicyStatus, setNewPolicyStatus] = useState<"allow" | "opt-out">("allow");
@@ -109,9 +174,10 @@ export function IngestDeck({
   const [formState, setFormState] = useState({
     title: "",
     streamerName: "",
-    sourcePlatform: "Twitch" as "Twitch" | "Kick" | "YouTube Live",
+    sourcePlatform: "Twitch" as SourcePlatform,
     sourceUrl: "",
     gameCategory: config.targetGames.find((g) => g.enabled)?.name || "Grand Theft Auto VI",
+    niche: "gaming" as ContentNiche,
     views: 4200,
     ageMinutes: 35,
     durationSec: 28,
@@ -244,6 +310,7 @@ export function IngestDeck({
         sourcePlatform: "Twitch",
         sourceUrl: "",
         gameCategory: config.targetGames.find((g) => g.enabled)?.name || "Grand Theft Auto VI",
+        niche: "gaming",
         views: 4200,
         ageMinutes: 35,
         durationSec: 28,
@@ -270,6 +337,448 @@ export function IngestDeck({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      {/* Top Research vs. Media Bin Switcher */}
+      <div className="px-4 sm:px-6 border-b border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#0D0F14] flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-6">
+          <button
+            type="button"
+            onClick={() => setDeckMode("research")}
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+              deckMode === "research"
+                ? "text-[#0F172A] dark:text-[#F1F5F9]"
+                : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5 text-[#E1392B]" />
+            <span>Research: What to Make ({researchOpportunities.length})</span>
+            {deckMode === "research" && (
+              <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeckMode("faceless")}
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+              deckMode === "faceless"
+                ? "text-[#0F172A] dark:text-[#F1F5F9]"
+                : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
+            }`}
+          >
+            <Wand2 className="w-3.5 h-3.5 text-[#E1392B]" />
+            <span>Faceless Story Builder</span>
+            {deckMode === "faceless" && (
+              <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeckMode("bin")}
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+              deckMode === "bin"
+                ? "text-[#0F172A] dark:text-[#F1F5F9]"
+                : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
+            }`}
+          >
+            <Film className="w-3.5 h-3.5" />
+            <span>Media Bin &amp; QA ({clips.length})</span>
+            {deckMode === "bin" && (
+              <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+
+        <span className="hidden md:inline text-[11px] font-mono text-slate-500">
+          1of10 Outlier Radar · Multi-Niche Intake · Anti-Brainrot Faceless Studio
+        </span>
+      </div>
+
+      {deckMode === "faceless" ? (
+        <div className="flex-1 bg-[#F6F7F9] dark:bg-[#0A0B0E] p-4 sm:p-6 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-6 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] space-y-5 text-xs">
+            <div className="space-y-1">
+              <h2 className="font-display text-base font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                Editorial Faceless Story &amp; Split-Loop Short Builder
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400">
+                Built to outperform generic &ldquo;brainrot&rdquo; generators: pick an authority format, paste a topic, Reddit debate, or news angle, and Gemini generates a 28s spoken script, timed kinetic captions, B-Roll cutaways, and routes it directly into the Studio Voiceover Engine with zero DMCA risk.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {(
+                [
+                  { id: "authority-tech", title: "Authority Breakdown", desc: "Clean 16:9 blur + broadcast captions for AI/Finance" },
+                  { id: "reddit-debate", title: "Reddit / X Debate", desc: "Split-stack storytelling with punchy tension hooks" },
+                  { id: "mystery-doc", title: "60s Micro-Doc", desc: "Suspense music bed + HUD data callouts" },
+                  { id: "split-loop", title: "Split-Screen Loop", desc: "Kinetic captions + retention visual bottom deck" },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setFacelessStyle(m.id)}
+                  className={`p-3 rounded-sm border text-left space-y-1 transition-colors ${
+                    facelessStyle === m.id
+                      ? "border-[#E1392B] bg-[#E1392B]/5"
+                      : "border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#141720]"
+                  }`}
+                >
+                  <div className="font-display font-bold text-[#0F172A] dark:text-[#F1F5F9]">{m.title}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{m.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!facelessTopic.trim()) return;
+                await onBuildFacelessShort({
+                  topic: facelessTopic,
+                  niche: facelessNiche,
+                  facelessStyle,
+                  sourceText: facelessSourceText,
+                });
+                setFacelessTopic("");
+                setFacelessSourceText("");
+              }}
+              className="space-y-3.5"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Topic, Headline, or Story Hook</label>
+                  <input
+                    type="text"
+                    required
+                    value={facelessTopic}
+                    onChange={(e) => setFacelessTopic(e.target.value)}
+                    placeholder="e.g. How running Gemma 4 2B on a home PC cuts AI automation costs to $0"
+                    className="w-full h-9 px-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0D0F14]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Target Niche</label>
+                  <select
+                    value={facelessNiche}
+                    onChange={(e) => setFacelessNiche(e.target.value as ContentNiche)}
+                    className="w-full h-9 px-2.5 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0D0F14]"
+                  >
+                    <option value="tech-ai">AI &amp; Tech ($3.40 RPM)</option>
+                    <option value="finance">Finance ($3.80 RPM)</option>
+                    <option value="faceless-doc">Faceless Micro-Doc ($2.80 RPM)</option>
+                    <option value="podcasts">Creator / Podcast Debate ($2.25 RPM)</option>
+                    <option value="gaming">Gaming Deep Dive ($0.95 RPM)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">
+                  Optional Source Thread, Reddit Post, or Bullet Facts
+                </label>
+                <textarea
+                  rows={4}
+                  value={facelessSourceText}
+                  onChange={(e) => setFacelessSourceText(e.target.value)}
+                  placeholder="Paste key stats, quotes, or a Reddit/X thread so the script stays grounded in real specifics..."
+                  className="w-full p-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0D0F14]"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="text-slate-500">Presets:</span>
+                  {[
+                    "Why 2B local AI models on Windows PCs are replacing $200/mo SaaS stacks",
+                    "The $40M decimal-point glitch that broke an MMO economy in 11 minutes",
+                  ].map((idea) => (
+                    <button
+                      key={idea}
+                      type="button"
+                      onClick={() => setFacelessTopic(idea)}
+                      className="px-2 py-0.5 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] text-slate-600 dark:text-slate-300 hover:border-[#E1392B]"
+                    >
+                      {idea.slice(0, 44)}...
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="submit"
+                  disabled={isBuildingFaceless || !facelessTopic.trim()}
+                  className="h-9 px-4 rounded-sm bg-[#E1392B] hover:bg-[#c83024] disabled:opacity-50 text-white font-semibold inline-flex items-center gap-1.5"
+                >
+                  {isBuildingFaceless ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                  <span>{isBuildingFaceless ? "Building Faceless Short..." : "Build & Open in Studio"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : deckMode === "research" ? (
+        <div className="flex-1 bg-[#F6F7F9] dark:bg-[#0A0B0E] p-4 sm:p-6 space-y-5 overflow-y-auto">
+          {/* Live Multi-Niche Research Command Bar */}
+          <div className="p-4 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="font-display text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                  Data-Driven Opportunity Finder (Research is King)
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Combines live Google Search velocity with your fleet&rsquo;s RPM &amp; watch-time winners to tell you what to clip or narrate next.
+                </p>
+              </div>
+              <div className="inline-flex flex-wrap items-center gap-1.5 text-[11px]">
+                {(
+                  [
+                    { id: "all", label: "All Niches" },
+                    { id: "gaming", label: "Gaming" },
+                    { id: "tech-ai", label: "AI & Tech" },
+                    { id: "podcasts", label: "Podcasts" },
+                    { id: "finance", label: "Finance" },
+                    { id: "faceless-doc", label: "Faceless Doc" },
+                  ] as const
+                ).map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => setNicheFilter(n.id)}
+                    className={`px-2 py-1 rounded-xs font-medium ${
+                      nicheFilter === n.id
+                        ? "bg-[#0F172A] dark:bg-[#F1F5F9] text-white dark:text-[#0F172A]"
+                        : "text-slate-500 hover:text-[#0F172A] dark:hover:text-white"
+                    }`}
+                  >
+                    {n.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!isResearching) onRunResearch(researchFocus);
+              }}
+              className="flex flex-col sm:flex-row gap-2"
+            >
+              <input
+                type="text"
+                value={researchFocus}
+                onChange={(e) => setResearchFocus(e.target.value)}
+                placeholder="Focus research (e.g., GTA 6 leaks, Open-source AI launches, high-RPM podcast clips)..."
+                className="flex-1 h-9 px-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0A0B0E] text-xs"
+              />
+              <button
+                type="submit"
+                disabled={isResearching}
+                className="h-9 px-4 rounded-sm bg-[#E1392B] hover:bg-[#c83024] disabled:opacity-60 text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                {isResearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Compass className="w-3.5 h-3.5" />}
+                <span>{isResearching ? "Scanning Web..." : "Run Live Research Scan"}</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Recurring Background Knowledge Acquisition Task — Creator Economy Newsletters & AI-Tool Crawler */}
+          {knowledgeAcquisition && (
+            <div className="p-4 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Newspaper className="w-4 h-4 text-[#E1392B]" />
+                    <h3 className="font-display text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                      Background Knowledge Acquisition Task · Auto-Drafted Opportunities
+                    </h3>
+                    <span className="font-mono text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
+                      {knowledgeAcquisition.enabled ? `ACTIVE · ${knowledgeAcquisition.cadence}` : "PAUSED"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Crawls top creator economy newsletters &amp; AI-tool trackers on schedule and automatically drafts ready-to-build Opportunity cards below.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {onUpdateKnowledgeConfig && (
+                    <>
+                      <label className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-sm border border-[#D9DEE7] dark:border-[#252A36] bg-[#F6F7F9] dark:bg-[#141720] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={knowledgeAcquisition.enabled}
+                          onChange={(e) => onUpdateKnowledgeConfig({ enabled: e.target.checked })}
+                          className="accent-[#E1392B]"
+                        />
+                        <span>Recurring</span>
+                      </label>
+
+                      <select
+                        aria-label="Knowledge Acquisition crawl cadence"
+                        value={knowledgeAcquisition.cadence}
+                        onChange={(e) =>
+                          onUpdateKnowledgeConfig({ cadence: e.target.value as KnowledgeCrawlCadence })
+                        }
+                        className="h-8 px-2 rounded-sm border border-[#D9DEE7] dark:border-[#252A36] bg-[#F6F7F9] dark:bg-[#141720] text-xs"
+                      >
+                        <option value="manual">Manual</option>
+                        <option value="every-1h">Every 1h</option>
+                        <option value="every-6h">Every 6h</option>
+                        <option value="daily">Daily</option>
+                      </select>
+                    </>
+                  )}
+
+                  {onRunKnowledgeCrawl && (
+                    <button
+                      type="button"
+                      disabled={isCrawlingKnowledge}
+                      onClick={() => onRunKnowledgeCrawl(researchFocus)}
+                      className="h-8 px-3 rounded-sm bg-[#0F172A] dark:bg-[#F1F5F9] text-white dark:text-[#0F172A] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+                    >
+                      {isCrawlingKnowledge ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5 text-[#E1392B]" />
+                      )}
+                      <span>{isCrawlingKnowledge ? "Crawling Feeds..." : "Crawl Newsletters & Draft Cards"}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Tracked Newsletter & AI-Tool Feed Toggles */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {knowledgeAcquisition.feeds.map((feed) => (
+                  <button
+                    key={feed.id}
+                    type="button"
+                    onClick={() => {
+                      if (!onUpdateKnowledgeConfig) return;
+                      const nextFeeds = knowledgeAcquisition.feeds.map((f) =>
+                        f.id === feed.id ? { ...f, enabled: !f.enabled } : f
+                      );
+                      onUpdateKnowledgeConfig({ feeds: nextFeeds });
+                    }}
+                    className={`px-2 py-1 rounded-sm border text-[11px] font-mono transition-colors ${
+                      feed.enabled
+                        ? "border-[#E1392B]/50 bg-[#E1392B]/10 text-[#0F172A] dark:text-[#F1F5F9]"
+                        : "border-[#D9DEE7] dark:border-[#252A36] text-slate-400 line-through"
+                    }`}
+                  >
+                    {feed.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Latest Background Run Summary */}
+              <div className="pt-2 border-t border-[#ECEFF3] dark:border-[#1E222C] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-500">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-[#E1392B]" />
+                  <span>
+                    Runs: {knowledgeAcquisition.totalRuns} · Auto-Drafted: {knowledgeAcquisition.totalDrafted} · Next:{" "}
+                    {knowledgeAcquisition.nextRunAt
+                      ? new Date(knowledgeAcquisition.nextRunAt).toLocaleTimeString()
+                      : "Manual"}
+                  </span>
+                </span>
+                {knowledgeAcquisition.recentRuns[0] && (
+                  <span className="truncate max-w-xl text-slate-600 dark:text-slate-300">
+                    Latest: {knowledgeAcquisition.recentRuns[0].headlineSummary}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Opportunity Cards Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {researchOpportunities
+              .filter((o) => nicheFilter === "all" || o.niche === nicheFilter)
+              .map((opp) => (
+                <article
+                  key={opp.id}
+                  className="p-5 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] flex flex-col justify-between gap-4"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {opp.origin === "knowledge-acquisition" && (
+                          <span className="px-1.5 py-0.5 rounded-xs border border-[#E1392B]/40 bg-[#E1392B]/10 text-[#E1392B] text-[10px] font-bold uppercase shrink-0">
+                            AUTO-DRAFTED
+                          </span>
+                        )}
+                        <span className="uppercase font-semibold text-[#E1392B] truncate">
+                          {opp.niche} · {opp.newsletterOrFeed || opp.source}
+                        </span>
+                      </div>
+                      <span className="tabular-nums text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+                        {opp.outlierMultiplier ? `${opp.outlierMultiplier.toFixed(1)}× Outlier · ` : `${(opp.viralScore / 10).toFixed(1)}× Outlier · `}
+                        Est. ${opp.estimatedRpmUsd.toFixed(2)} RPM · Score {opp.viralScore}/99
+                      </span>
+                    </div>
+
+                    <h3 className="font-display text-base font-bold text-[#0F172A] dark:text-[#F1F5F9] leading-snug">
+                      {opp.topic}
+                    </h3>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{opp.whyNow}</p>
+
+                    <div className="p-3 rounded-sm border border-[#D9DEE7] dark:border-[#252A36] bg-[#F6F7F9] dark:bg-[#0A0B0E] space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between font-mono text-[10px] text-slate-500">
+                        <span>HOOK BLUEPRINT</span>
+                        <span>
+                          Competition: <strong className="uppercase">{opp.competitionLevel}</strong> · Voice:{" "}
+                          <strong>{opp.recommendedVoice}</strong>
+                        </span>
+                      </div>
+                      <div className="font-display font-bold text-[#E1392B]">{opp.hookBlueprint}</div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 italic line-clamp-2">
+                        &ldquo;{opp.suggestedScript}&rdquo;
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#ECEFF3] dark:border-[#1E222C]">
+                    <div className="flex items-center gap-2 font-mono text-[11px] text-slate-500">
+                      <span>Template: {opp.recommendedTemplate}</span>
+                      {opp.sourceUrl && (
+                        <a
+                          href={opp.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[#E1392B] hover:underline"
+                        >
+                          <span>Source</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={buildingOppId === opp.id}
+                      onClick={async () => {
+                        setBuildingOppId(opp.id);
+                        try {
+                          await onCreateClipFromOpportunity(opp);
+                        } finally {
+                          setBuildingOppId(null);
+                        }
+                      }}
+                      className="h-8 px-3.5 rounded-sm bg-[#0F172A] dark:bg-[#F1F5F9] text-white dark:text-[#0F172A] text-xs font-semibold inline-flex items-center gap-1.5"
+                    >
+                      {buildingOppId === opp.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Mic className="w-3.5 h-3.5 text-[#E1392B]" />
+                      )}
+                      <span>Build Clip &amp; Voiceover Brief</span>
+                    </button>
+                  </div>
+                </article>
+              ))}
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Broadcast Media Bin Toolbar */}
       <div className="px-4 sm:px-6 py-3 border-b border-[#D9DEE7] dark:border-[#222631] bg-[#ECEFF3]/70 dark:bg-[#111318] flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
@@ -449,6 +958,7 @@ export function IngestDeck({
                   const isSelected = inspectedClip?.id === clip.id;
                   const isChecked = checkedIds.includes(clip.id);
                   const vel = computeViewsPerMinute(clip.views, clip.ageMinutes);
+                  const outlier = computeOutlierMultiplier(clip.views, clip.channelBaselineViews);
                   const sat = computeSaturationLevel(clip.duplicateCrossPosts, config.qaRules.maxExistingCrossPosts);
                   const dmca = clip.qaResult?.dmcaMusicRisk || "none";
                   const hasDupAlert = duplicateAlerts.has(clip.id);
@@ -490,6 +1000,10 @@ export function IngestDeck({
                               <span>{clip.sourcePlatform}</span>
                               <span aria-hidden="true">·</span>
                               <span className="font-mono tabular-nums">{formatCompactNumber(clip.views)}</span>
+                              <span aria-hidden="true">·</span>
+                              <span className={`font-mono tabular-nums font-medium ${outlier >= 3 ? "text-emerald-600 dark:text-emerald-400" : outlier >= 1.8 ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400"}`}>
+                                {outlier.toFixed(1)}× outlier
+                              </span>
                               <span aria-hidden="true">·</span>
                               <span className="font-mono tabular-nums">{clip.durationSec}s</span>
                               {sat === "Saturated" && (
@@ -730,6 +1244,8 @@ export function IngestDeck({
           )}
         </aside>
       </div>
+      </>
+      )}
 
       {/* Add Clip Modal */}
       {showAddModal && (
@@ -766,16 +1282,46 @@ export function IngestDeck({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Platform</label>
+                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Source Platform</label>
                   <select
                     value={formState.sourcePlatform}
-                    onChange={(e) => setFormState((s) => ({ ...s, sourcePlatform: e.target.value as "Twitch" | "Kick" | "YouTube Live" }))}
+                    onChange={(e) => setFormState((s) => ({ ...s, sourcePlatform: e.target.value as SourcePlatform }))}
                     className="w-full h-9 px-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0A0B0E]"
                   >
                     <option value="Twitch">Twitch</option>
                     <option value="Kick">Kick</option>
                     <option value="YouTube Live">YouTube Live</option>
+                    <option value="YouTube Podcast">YouTube Podcast</option>
+                    <option value="Reddit">Reddit</option>
+                    <option value="X / News">X / News</option>
                   </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Content Niche</label>
+                  <select
+                    value={formState.niche}
+                    onChange={(e) => setFormState((s) => ({ ...s, niche: e.target.value as ContentNiche }))}
+                    className="w-full h-9 px-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0A0B0E]"
+                  >
+                    <option value="gaming">Gaming</option>
+                    <option value="tech-ai">AI &amp; Tech</option>
+                    <option value="podcasts">Podcasts</option>
+                    <option value="finance">Finance</option>
+                    <option value="sports-irl">Sports &amp; IRL</option>
+                    <option value="faceless-doc">Faceless Doc</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Topic / Game Category</label>
+                  <input
+                    type="text"
+                    value={formState.gameCategory}
+                    onChange={(e) => setFormState((s) => ({ ...s, gameCategory: e.target.value }))}
+                    placeholder="e.g., Grand Theft Auto VI or AI News"
+                    className="w-full h-9 px-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0A0B0E]"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">

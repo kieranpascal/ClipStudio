@@ -33,6 +33,11 @@ interface VodHighlightsDeckProps {
     durationSec: number;
     transcript: string;
   }) => Promise<void>;
+  onPromptSearchVod: (payload: {
+    vodId: string;
+    query: string;
+    padContextArc: boolean;
+  }) => Promise<VodMoment[]>;
   onExtractMoment: (payload: {
     title: string;
     streamerName: string;
@@ -52,6 +57,7 @@ export function VodHighlightsDeck({
   vodSessions,
   clips,
   onAnalyzeVod,
+  onPromptSearchVod,
   onExtractMoment,
   isAnalyzingVod,
 }: VodHighlightsDeckProps) {
@@ -60,6 +66,12 @@ export function VodHighlightsDeck({
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const [editedTranscript, setEditedTranscript] = useState<string>("");
   const [scrubbedCount, setScrubbedCount] = useState<number>(0);
+
+  // ClipAnything natural-language VOD prompt search
+  const [clipPromptQuery, setClipPromptQuery] = useState("");
+  const [padContextArc, setPadContextArc] = useState(true);
+  const [searchingPrompt, setSearchingPrompt] = useState(false);
+  const [promptMoments, setPromptMoments] = useState<VodMoment[]>([]);
 
   // New VOD Ingest form
   const [showNewForm, setShowNewForm] = useState(false);
@@ -95,6 +107,24 @@ export function VodHighlightsDeck({
     [clips, selectedMontageIds]
   );
   const compilationCmd = useMemo(() => generateCompilationFfmpeg(montageClips), [montageClips]);
+
+  async function handleRunClipAnything(e?: React.FormEvent, overrideQuery?: string) {
+    if (e) e.preventDefault();
+    const q = (overrideQuery ?? clipPromptQuery).trim();
+    if (!activeVod || !q) return;
+    if (overrideQuery) setClipPromptQuery(overrideQuery);
+    setSearchingPrompt(true);
+    try {
+      const results = await onPromptSearchVod({
+        vodId: activeVod.id,
+        query: q,
+        padContextArc,
+      });
+      setPromptMoments(results);
+    } finally {
+      setSearchingPrompt(false);
+    }
+  }
 
   async function handleExtract(moment: VodMoment) {
     if (!activeVod) return;
@@ -156,7 +186,7 @@ export function VodHighlightsDeck({
         <div className="flex items-center gap-6">
           {(
             [
-              { id: "radar", label: "VOD Hype & Chapters" },
+              { id: "radar", label: "VOD Hype & ClipAnything" },
               { id: "transcript", label: "Text-Based Editor" },
               { id: "montage", label: `Auto-Montage (${montageClips.length})` },
             ] as const
@@ -189,6 +219,7 @@ export function VodHighlightsDeck({
                 setActiveVodId(e.target.value);
                 setEditedTranscript("");
                 setScrubbedCount(0);
+                setPromptMoments([]);
               }}
               className="h-8 px-2.5 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-white dark:bg-[#171A21] text-xs max-w-[240px] truncate"
             >
@@ -271,9 +302,122 @@ export function VodHighlightsDeck({
         </form>
       )}
 
-      {/* SUB-TAB 1: VOD HYPE HEATMAP & AUTO-CHAPTER HIGHLIGHTS */}
+      {/* SUB-TAB 1: VOD HYPE HEATMAP, CLIPANYTHING PROMPT SEARCH & AUTO-CHAPTERS */}
       {subTab === "radar" && activeVod && (
         <div className="flex-1 flex flex-col">
+          {/* ClipAnything Natural-Language VOD Search Bar */}
+          <form
+            onSubmit={(e) => handleRunClipAnything(e)}
+            className="p-4 sm:px-5 border-b border-[#D9DEE7] dark:border-[#222631] bg-[#F6F7F9] dark:bg-[#10131A] space-y-2.5 text-xs"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#E1392B]" />
+                <span className="font-display font-bold text-[#0F1115] dark:text-[#EEF0F4]">
+                  ClipAnything Prompt Search
+                </span>
+                <span className="text-slate-500 hidden sm:inline">
+                  — Ask for any moment in plain English instead of scrubbing hours of VOD
+                </span>
+              </div>
+              <label className="inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-600 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={padContextArc}
+                  onChange={(e) => setPadContextArc(e.target.checked)}
+                  className="accent-[#E1392B]"
+                />
+                <span>Context Arc Guard (+2s setup / +2s punchline)</span>
+              </label>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={clipPromptQuery}
+                onChange={(e) => setClipPromptQuery(e.target.value)}
+                placeholder='e.g. "Find every high-stakes bounty escape, money mention, or stunt jump"'
+                className="flex-1 h-9 px-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-white dark:bg-[#0D0F14]"
+              />
+              <button
+                type="submit"
+                disabled={searchingPrompt || !clipPromptQuery.trim()}
+                className="h-9 px-4 rounded-sm bg-[#E1392B] hover:bg-[#c83124] disabled:opacity-50 text-white font-semibold inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                {searchingPrompt ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <span>{searchingPrompt ? "Searching VOD..." : "Find Matching Clips"}</span>
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="text-slate-500">Quick prompts:</span>
+              {[
+                "Find every stunt jump or near-miss crash",
+                "Find moments mentioning money, bounty, or numbers",
+                "Find highest heart-rate shock reactions",
+              ].map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => handleRunClipAnything(undefined, q)}
+                  className="px-2 py-0.5 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-white dark:bg-[#171A21] text-slate-600 dark:text-slate-300 hover:border-[#E1392B]"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </form>
+
+          {promptMoments.length > 0 && (
+            <div className="border-b border-[#E1392B]/30 bg-[#E1392B]/5 divide-y divide-[#D9DEE7] dark:divide-[#222631]">
+              <div className="px-5 py-2.5 flex items-center justify-between text-xs font-mono">
+                <span className="text-[#E1392B] font-semibold">
+                  CLIPANYTHING MATCHES ({promptMoments.length}) FOR &ldquo;{clipPromptQuery}&rdquo;
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPromptMoments([])}
+                  className="text-slate-500 hover:text-[#0F172A] dark:hover:text-white"
+                >
+                  Clear Results
+                </button>
+              </div>
+              {promptMoments.map((moment) => (
+                <div key={moment.id} className="p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-1 max-w-3xl">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-slate-500">
+                      <span className="text-[#E1392B] font-semibold">
+                        {formatTimecode(moment.startSec)} → {formatTimecode(moment.endSec)}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>Energy {moment.peakEnergy}/100</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="text-[#0F1115] dark:text-slate-200 font-semibold">{moment.hookBanner}</span>
+                    </div>
+                    <div className="font-display text-sm font-bold text-[#0F1115] dark:text-[#EEF0F4]">
+                      {moment.title}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 italic">
+                      &ldquo;{moment.transcriptExcerpt}&rdquo;
+                    </p>
+                    <p className="text-xs text-slate-500">{moment.reason}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={extractingId === moment.id}
+                    onClick={() => handleExtract(moment)}
+                    className="h-9 px-3.5 rounded-sm bg-[#E1392B] hover:bg-[#c83124] text-white text-xs font-semibold inline-flex items-center gap-1.5 shrink-0"
+                  >
+                    {extractingId === moment.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Scissors className="w-3.5 h-3.5" />
+                    )}
+                    <span>Slice Match to Bin</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Chat-Hype & Audio Energy Spike Heatmap */}
           <div className="p-5 border-b border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#0D0F14] space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

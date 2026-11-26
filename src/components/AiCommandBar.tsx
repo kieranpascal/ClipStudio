@@ -13,12 +13,13 @@ interface AiCommandBarProps {
 }
 
 const QUICK_NAV: Array<{ label: string; tab: WorkspaceTab }> = [
-  { label: "Jump to Dual-Monitor Studio", tab: "studio" },
-  { label: "Jump to Ingest Media Bin", tab: "ingest" },
+  { label: "Jump to Vertical Studio & Voiceover Engine", tab: "studio" },
+  { label: "Jump to Research & Media Bin", tab: "ingest" },
   { label: "Jump to VOD & Highlights", tab: "vod" },
   { label: "Jump to Templates & B-Roll", tab: "templates" },
-  { label: "Jump to Distribution & Fleet", tab: "distribution" },
-  { label: "Jump to AI Director", tab: "autopilot" },
+  { label: "Jump to Publish & Channel Fleet", tab: "distribution" },
+  { label: "Jump to AI Ops Agent & LM Studio", tab: "autopilot" },
+  { label: "Jump to Performance Monitor (Hourly Velocity)", tab: "performance" },
   { label: "Jump to GitOps & Live Telemetry", tab: "gitops" },
   { label: "Jump to Presentation Guide", tab: "guide" },
 ];

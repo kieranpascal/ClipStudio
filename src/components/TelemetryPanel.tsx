@@ -22,7 +22,7 @@ interface TelemetryPanelProps {
 
 export function TelemetryPanel({ events, onRefresh }: TelemetryPanelProps) {
   const [refreshing, setRefreshing] = useState(false);
-  const [filterCategory, setFilterCategory] = useState<"all" | "gitops" | "gemini">("all");
+  const [filterCategory, setFilterCategory] = useState<"all" | "gitops" | "gemini" | "local-llm">("all");
 
   const stats = useMemo(() => {
     const gitops = events.filter((e) => e.category === "gitops");
@@ -133,7 +133,7 @@ export function TelemetryPanel({ events, onRefresh }: TelemetryPanelProps) {
 
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center p-0.5 rounded-sm bg-[#ECEFF3] dark:bg-[#171A21] border border-[#D9DEE7] dark:border-[#262B37]">
-            {(["all", "gitops", "gemini"] as const).map((cat) => (
+            {(["all", "gitops", "gemini", "local-llm"] as const).map((cat) => (
               <button
                 key={cat}
                 type="button"
@@ -144,7 +144,13 @@ export function TelemetryPanel({ events, onRefresh }: TelemetryPanelProps) {
                     : "text-slate-600 dark:text-slate-400 hover:text-[#0F1115] dark:hover:text-white"
                 }`}
               >
-                {cat === "all" ? "All Signals" : cat === "gitops" ? "GitOps" : "Gemini AI"}
+                {cat === "all"
+                  ? "All Signals"
+                  : cat === "gitops"
+                    ? "GitOps"
+                    : cat === "gemini"
+                      ? "Gemini AI"
+                      : "Local LLM"}
               </button>
             ))}
           </div>

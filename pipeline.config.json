@@ -7,14 +7,32 @@
       "twitchGameId": "32982",
       "minViews": 1500,
       "maxClipAgeHours": 4,
-      "enabled": true
+      "enabled": true,
+      "niche": "gaming"
+    },
+    {
+      "name": "AI & Tech Breaking Clips",
+      "twitchGameId": "tech_ai_rss",
+      "minViews": 2000,
+      "maxClipAgeHours": 6,
+      "enabled": true,
+      "niche": "tech-ai"
+    },
+    {
+      "name": "Creator Podcast Hot Takes",
+      "twitchGameId": "podcast_yt_rss",
+      "minViews": 3500,
+      "maxClipAgeHours": 12,
+      "enabled": true,
+      "niche": "podcasts"
     },
     {
       "name": "Valorant",
       "twitchGameId": "516575",
       "minViews": 2500,
       "maxClipAgeHours": 6,
-      "enabled": false
+      "enabled": false,
+      "niche": "gaming"
     }
   ],
   "qaRules": {
@@ -27,14 +45,14 @@
   },
   "audioProcessing": {
     "targetLufs": -11,
-    "truePeakDb": -1.0,
+    "truePeakDb": -1,
     "removeSilence": true,
     "silenceThresholdDb": -38
   },
   "brandKit": {
     "watermarkHandle": "@clipforge.gg",
     "watermarkOpacity": 0.65,
-    "endCardCta": "Follow for daily GTA 6 clips"
+    "endCardCta": "Follow for daily viral cuts"
   },
   "layoutDefaults": {
     "aspectRatio": "9:16",
@@ -44,20 +62,23 @@
     "facecamHeightPercent": 36,
     "maskChatRegion": true,
     "prependPeakHook": true,
-    "hookDurationSeconds": 3.0,
+    "hookDurationSeconds": 3,
     "captionStyle": "kinetic-highlight"
   },
   "publishing": {
     "platforms": [
       "TikTok",
       "Instagram Reels",
-      "YouTube Shorts"
+      "YouTube Shorts",
+      "X Video",
+      "Snapchat Spotlight",
+      "Facebook Reels"
     ],
-    "maxPostsPerDay": 10,
+    "maxPostsPerDay": 14,
     "minSpacingMinutes": 45,
     "staggerJitterMinutes": 18,
-    "targetDailyRevenueUsd": 100,
-    "assumedRpmUsd": 0.75
+    "targetDailyRevenueUsd": 150,
+    "assumedRpmUsd": 1.35
   },
   "channelFleet": [
     {
@@ -65,33 +86,82 @@
       "name": "Vice Clips Main (EN)",
       "handle": "@viceclips.gg",
       "locale": "en",
-      "platforms": ["TikTok", "Instagram Reels", "YouTube Shorts"],
+      "niche": "gaming",
+      "platforms": [
+        "TikTok",
+        "Instagram Reels",
+        "YouTube Shorts",
+        "X Video"
+      ],
       "stage": "monetized",
       "dailyPostCap": 6,
       "staggerJitterMin": 15,
       "assumedRpmUsd": 0.85
     },
     {
+      "id": "ch_tech_en",
+      "name": "SignalByte AI & Tech (EN)",
+      "handle": "@signalbyte.ai",
+      "locale": "en",
+      "niche": "tech-ai",
+      "platforms": [
+        "YouTube Shorts",
+        "TikTok",
+        "X Video",
+        "Instagram Reels"
+      ],
+      "stage": "monetized",
+      "dailyPostCap": 4,
+      "staggerJitterMin": 20,
+      "assumedRpmUsd": 3.4
+    },
+    {
+      "id": "ch_pod_en",
+      "name": "SharpCut Podcasts (EN)",
+      "handle": "@sharpcut.pods",
+      "locale": "en",
+      "niche": "podcasts",
+      "platforms": [
+        "TikTok",
+        "Instagram Reels",
+        "YouTube Shorts",
+        "Facebook Reels"
+      ],
+      "stage": "scaling",
+      "dailyPostCap": 4,
+      "staggerJitterMin": 25,
+      "assumedRpmUsd": 2.25
+    },
+    {
       "id": "ch_es_latam",
       "name": "Vice Clips LATAM (ES)",
       "handle": "@viceclips_es",
       "locale": "es",
-      "platforms": ["TikTok", "YouTube Shorts"],
+      "niche": "gaming",
+      "platforms": [
+        "TikTok",
+        "YouTube Shorts",
+        "Snapchat Spotlight"
+      ],
       "stage": "scaling",
       "dailyPostCap": 4,
       "staggerJitterMin": 22,
-      "assumedRpmUsd": 0.45
+      "assumedRpmUsd": 0.55
     },
     {
       "id": "ch_pt_br",
       "name": "Vice Clips Brasil (PT)",
       "handle": "@viceclips_br",
       "locale": "pt",
-      "platforms": ["TikTok", "Instagram Reels"],
+      "niche": "gaming",
+      "platforms": [
+        "TikTok",
+        "Instagram Reels"
+      ],
       "stage": "warmup",
       "dailyPostCap": 2,
       "staggerJitterMin": 30,
-      "assumedRpmUsd": 0.40
+      "assumedRpmUsd": 0.45
     }
   ],
   "streamerPolicies": [
@@ -114,11 +184,26 @@
   "aiDirector": {
     "mode": "supervised",
     "brandVoice": "hype-arcade",
-    "customVoicePrompt": "Write sharp, fast-paced gaming hooks under 34 characters. Never use generic clickbait; anchor every hook in the exact speed, near-miss, or physics stunt happening on screen.",
+    "customVoicePrompt": "Write sharp, data-backed hooks under 34 characters. Anchor every opening line in the exact stunt, surprising stat, or contrarian claim happening on screen. | SENTIMENT FEEDBACK (gaming): Prioritize split-stack + 2.8s peak hook prepend with kinetic-highlight captions; cap meme cutaways to 1 intentional beat per 25s clip and keep Twitch chat overlays masked.",
     "autoAuditOnIngest": true,
     "autoGenerateHooks": true,
-    "autoLocalizeLocales": ["es", "pt"],
+    "autoLocalizeLocales": [
+      "es",
+      "pt"
+    ],
     "maxAutoActionsPerRun": 6
+  },
+  "localLlm": {
+    "enabled": true,
+    "routingMode": "hybrid-local-first",
+    "baseUrl": "http://localhost:1234/v1",
+    "model": "gemma-4-2b-it",
+    "computeHost": "windows-pc",
+    "offloadTasks": [
+      "seo-hashtags",
+      "script-draft",
+      "caption-cleanup"
+    ]
   },
   "brandPresets": [
     {
@@ -132,24 +217,100 @@
       "targetLufs": -11
     },
     {
-      "id": "preset_esports",
-      "name": "Broadcast HUD Sniper",
-      "watermarkHandle": "@clipforge.pro",
-      "watermarkOpacity": 0.55,
-      "endCardCta": "Drop a follow for frame-by-frame clutches",
+      "id": "preset_tech_ai",
+      "name": "High-RPM Tech Explainer",
+      "watermarkHandle": "@signalbyte.ai",
+      "watermarkOpacity": 0.6,
+      "endCardCta": "Save this before the next update",
       "captionStyle": "broadcast-lower",
-      "template": "hud-zoom",
+      "template": "blurred-backdrop",
       "targetLufs": -14
     },
     {
-      "id": "preset_reaction",
-      "name": "Creator Reaction Vault",
-      "watermarkHandle": "@reactclips.tv",
-      "watermarkOpacity": 0.7,
-      "endCardCta": "Tag a friend who would choke this",
-      "captionStyle": "arcade-pop",
-      "template": "reaction-focus",
-      "targetLufs": -11
+      "id": "preset_podcast",
+      "name": "Dual-Speaker Podcast Cut",
+      "watermarkHandle": "@sharpcut.pods",
+      "watermarkOpacity": 0.65,
+      "endCardCta": "Comment if you agree or disagree",
+      "captionStyle": "bold-clean",
+      "captionFont": "jakarta",
+      "hookBannerPosition": "top",
+      "template": "dual-cam",
+      "targetLufs": -14
+    }
+  ],
+  "hotkeys": {
+    "trim-to-selection": "Shift+T",
+    "generate-hook": "Shift+H",
+    "send-to-queue": "Shift+Q",
+    "play-pause": "Space",
+    "blade-split": "B",
+    "toggle-safe-zones": "G",
+    "generate-voiceover": "Shift+V",
+    "add-review-note": "M",
+    "prev-clip": "[",
+    "next-clip": "]"
+  },
+  "syndicationRules": [
+    {
+      "id": "syn_rule_gaming",
+      "name": "Gaming Viral Watermark-Free Crosspost",
+      "enabled": true,
+      "triggerNiche": "gaming",
+      "minQaStatus": "approved",
+      "stripWatermark": true,
+      "targets": [
+        "TikTok",
+        "YouTube Shorts",
+        "Instagram Reels",
+        "X Video",
+        "Snapchat Spotlight"
+      ],
+      "retryOnApiFail": true,
+      "fallbackQueue": true
+    },
+    {
+      "id": "syn_rule_highrpm",
+      "name": "High-RPM Tech & Podcasts Full Fleet",
+      "enabled": true,
+      "triggerNiche": "tech-ai",
+      "minQaStatus": "approved",
+      "stripWatermark": true,
+      "targets": [
+        "YouTube Shorts",
+        "TikTok",
+        "Instagram Reels",
+        "X Video",
+        "Facebook Reels"
+      ],
+      "retryOnApiFail": true,
+      "fallbackQueue": true
+    }
+  ],
+  "slangDictionary": [
+    {
+      "wrong": "gta six",
+      "right": "GTA VI"
+    },
+    {
+      "wrong": "gta 6",
+      "right": "GTA VI"
+    },
+    {
+      "wrong": "lmstudio",
+      "right": "LM Studio"
+    },
+    {
+      "wrong": "kade velo",
+      "right": "KadeVelo"
+    },
+    {
+      "wrong": "lufs",
+      "right": "LUFS"
+    },
+    {
+      "wrong": "rpm",
+      "right": "RPM"
     }
   ]
 }
