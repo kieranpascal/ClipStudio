@@ -4,6 +4,7 @@ export type WorkspaceTab =
   | "vod"
   | "templates"
   | "assets"
+  | "ai-lab"
   | "distribution"
   | "autopilot"
   | "performance"
@@ -54,7 +55,13 @@ export type SocialPlatform =
   | "YouTube Shorts"
   | "X Video"
   | "Snapchat Spotlight"
-  | "Facebook Reels";
+  | "Facebook Reels"
+  | "LinkedIn Video"
+  | "Reddit Native Video"
+  | "Pinterest Idea Pins"
+  | "Threads Video"
+  | "Bluesky Video"
+  | "Substack Video";
 
 export type ContentNiche =
   | "gaming"
@@ -882,7 +889,114 @@ export interface MonetizationPlan {
     detail: string;
   }>;
   revenueProjection?: RevenueProjectionSnapshot;
+  funnelTest?: FunnelTestSnapshot;
   lastOptimizedAt?: string;
+}
+
+export type CtaPlacementType =
+  | "pre-roll-hook-banner"
+  | "mid-roll-verbal-lower-third"
+  | "pinned-comment-bio"
+  | "end-card-offer-slate"
+  | "split-screen-callout";
+
+export interface FunnelTestVariant {
+  id: string;
+  label: string;
+  placement: CtaPlacementType;
+  triggerSecond: number;
+  ctaCopy: string;
+  sponsorBrand: string;
+  niche: ContentNiche;
+  sampleClips: number;
+  impressions: number;
+  ctaClicks: number;
+  ctrPct: number;
+  sponsorConversions: number;
+  conversionRatePct: number;
+  retentionImpactPct: number;
+  revenuePer1kUsd: number;
+  estMonthlyLiftUsd: number;
+  isWinner?: boolean;
+}
+
+export interface FunnelTestSnapshot {
+  id: string;
+  updatedAt: string;
+  analyzedByModel?: string;
+  winnerVariantId: string;
+  winnerLabel: string;
+  conversionLiftPct: number;
+  executiveSummary: string;
+  keyInsights: string[];
+  recommendedCtaCopy: string;
+  recommendedPlacement: CtaPlacementType;
+  variants: FunnelTestVariant[];
+  appliedToPipelineAt?: string;
+}
+
+export interface RevenueGrowthAlert {
+  id: string;
+  detectedAt: string;
+  targetType: "niche" | "editing-style";
+  niche?: ContentNiche;
+  label: string;
+  editingStyle?: string;
+  baselineRoiPer1kUsd: number;
+  projectedRoiPer1kUsd: number;
+  roiIncreasePct: number;
+  projectedMonthlyDeltaUsd: number;
+  driverSummary: string;
+  directorSuggestion: string;
+  status: "active" | "actioned" | "dismissed";
+  actionedAt?: string;
+}
+
+export type AiComputeTierId =
+  | "manual-free"
+  | "windows-pc-local"
+  | "cloud-budget"
+  | "cloud-standard"
+  | "cloud-flagship";
+
+export type HostingStageId =
+  | "stage-1-free"
+  | "stage-2-starter"
+  | "stage-3-growth"
+  | "stage-4-scale";
+
+export interface AiCreditLedgerEntry {
+  id: string;
+  timestamp: string;
+  tier: AiComputeTierId;
+  feature: string;
+  model: string;
+  creditsUsed: number;
+  estUsdCost: number;
+  status: "success" | "fallback-free" | "error";
+}
+
+export interface AiComputeRoutingConfig {
+  activeTier: AiComputeTierId;
+  hostingStage: HostingStageId;
+  creditsBalance: number;
+  creditsMonthlyAllowance: number;
+  monthlyBudgetCapUsd: number;
+  estMonthSpendUsd: number;
+  autoDowngradeOnBudgetCap: boolean;
+  windowsPcEndpoint: string;
+  windowsPcModel: string;
+  supabaseConfigured?: boolean;
+  ledger: AiCreditLedgerEntry[];
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: "owner" | "creator";
+  planTier: "free-starter" | "pro-growth" | "agency-scale";
+  createdAt: string;
 }
 
 export type LearningDiscoveryType = "platform" | "source" | "method" | "monetization";
@@ -960,6 +1074,130 @@ export interface KnowledgeAcquisitionState {
   recentRuns: KnowledgeCrawlRun[];
 }
 
+export interface PlatformExpansionPattern {
+  id: string;
+  platform: SocialPlatform;
+  formatName: string;
+  aspectRatio: "9:16" | "4:5" | "1:1" | "16:9";
+  idealDurationRange: string;
+  viralPatternTitle: string;
+  algorithmSignal: string;
+  hookStructure: string;
+  captionPackaging: string;
+  targetCommunitiesOrTags: string[];
+  recommendedNiche: ContentNiche | "all";
+  viralPotentialScore: number;
+  competitionLevel: "low" | "medium" | "high";
+  estRpmOrValueLift: string;
+  stripWatermarkRequired: boolean;
+  recommendedDailyCap: number;
+  sourceUrl?: string;
+  discoveredAt: string;
+  adoptedToDistribution: boolean;
+  adoptedAt?: string;
+}
+
+export interface PlatformExpansionHistoryEntry {
+  id: string;
+  platform: SocialPlatform;
+  formatName: string;
+  appliedAt: string;
+  mode: "auto-sync" | "manual";
+  summary: string;
+}
+
+export interface PlatformExpansionState {
+  autoSyncToDistribution: boolean;
+  autoTargetMinScore: number;
+  focusNiche: ContentNiche | "all";
+  lastResearchedAt?: string;
+  totalResearchRuns: number;
+  executiveBrief: string;
+  patterns: PlatformExpansionPattern[];
+  sources: TrendPulseSource[];
+  appliedHistory: PlatformExpansionHistoryEntry[];
+}
+
+export interface AbTestVariantMetrics {
+  variantId: string;
+  label: string;
+  hookStyle: string;
+  hookBannerSample: string;
+  editingTemplate: LayoutTemplate;
+  captionStyle: CaptionStylePreset;
+  hookDurationSeconds: number;
+  sampleClips: number;
+  avgViews: number;
+  avgRetentionPct: number;
+  avgShareRatePct: number;
+  estRpmUsd: number;
+  isWinner?: boolean;
+}
+
+export interface AbTestRecommendedDefaults {
+  template: LayoutTemplate;
+  captionStyle: CaptionStylePreset;
+  prependPeakHook: boolean;
+  hookDurationSeconds: number;
+  facecamHeightPercent: number;
+  brandVoice?: AiDirectorPolicy["brandVoice"];
+  customVoicePrompt?: string;
+}
+
+export interface AbTestAnalysisSnapshot {
+  id: string;
+  analyzedAt: string;
+  modelUsed: string;
+  focusNiche: ContentNiche | "all";
+  winnerVariantId: string;
+  winnerLabel: string;
+  confidencePct: number;
+  projectedViewsLiftPct: number;
+  projectedRetentionLiftPct: number;
+  executiveVerdict: string;
+  keyFindings: string[];
+  variants: AbTestVariantMetrics[];
+  recommendedDefaults: AbTestRecommendedDefaults;
+  bakedIntoConfigAt?: string;
+  bakedSummary?: string;
+}
+
+export type OpportunityGapFreshness = "24h" | "7d" | "30d";
+
+export interface OpportunityGapTopic {
+  id: string;
+  topic: string;
+  niche: ContentNiche;
+  subCategory: string;
+  demandVelocity: "exploding" | "rising" | "steady";
+  searchTrendSignal: string;
+  whyUncovered: string;
+  suggestedHook: string;
+  angleBrief: string;
+  recommendedFormat: "split-screen" | "faceless-narration" | "podcast-split" | "authority-breakdown";
+  estimatedRpmUsd: number;
+  noveltyPct: number; // 0 - 100 verified gap against current clip library
+  closestLibraryClipTitle?: string;
+  sourceTitle?: string;
+  sourceUrl?: string;
+  discoveredAt: string;
+  promotedToClipId?: string;
+  savedToResearch?: boolean;
+}
+
+export interface OpportunityDiscoverySnapshot {
+  lastScannedAt: string;
+  focusNiche: ContentNiche | "all";
+  freshness: OpportunityGapFreshness;
+  customQuery?: string;
+  modelUsed: string;
+  libraryClipCountAudited: number;
+  excludedCoveredTopics: string[];
+  topics: OpportunityGapTopic[];
+  sources: TrendPulseSource[];
+  searchQueries: string[];
+}
+
 export interface WorkspaceState {
   clips: ClipItem[];
   config: PipelineConfig;
@@ -969,6 +1207,7 @@ export interface WorkspaceState {
   directorHistory: DirectorRunResult[];
   agentMessages?: AgentChatMessage[];
   researchOpportunities?: ResearchOpportunity[];
+  opportunityDiscovery?: OpportunityDiscoverySnapshot;
   trendPulse?: TrendPulseSnapshot;
   activeMission?: AutonomousMission;
   missionHistory?: AutonomousMission[];
@@ -979,6 +1218,10 @@ export interface WorkspaceState {
   monetizationPlan?: MonetizationPlan;
   selfLearning?: SelfLearningState;
   knowledgeAcquisition?: KnowledgeAcquisitionState;
+  platformExpansion?: PlatformExpansionState;
+  abTestAnalysis?: AbTestAnalysisSnapshot;
+  revenueAlerts?: RevenueGrowthAlert[];
+  computeRouting?: AiComputeRoutingConfig;
   integrations: IntegrationStatus;
 }
 

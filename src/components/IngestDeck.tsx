@@ -28,6 +28,9 @@ import type {
   KnowledgeAcquisitionState,
   KnowledgeCrawlCadence,
   KnowledgeSourceFeed,
+  OpportunityDiscoverySnapshot,
+  OpportunityGapFreshness,
+  OpportunityGapTopic,
   PipelineConfig,
   QaStatus,
   ResearchOpportunity,
@@ -42,14 +45,17 @@ import {
   formatCompactNumber,
 } from "../utils/ffmpeg";
 import { computeOutlierMultiplier } from "../utils/hotkeys";
+import { OpportunityDiscoveryPanel } from "./OpportunityDiscoveryPanel";
 
 interface IngestDeckProps {
   clips: ClipItem[];
   config: PipelineConfig;
   uiMode: UiMode;
   researchOpportunities: ResearchOpportunity[];
+  opportunityDiscovery?: OpportunityDiscoverySnapshot;
   knowledgeAcquisition?: KnowledgeAcquisitionState;
   isResearching: boolean;
+  isDiscoveringOpportunities?: boolean;
   isCrawlingKnowledge?: boolean;
   isBuildingFaceless: boolean;
   selectedClipId: string;
@@ -60,6 +66,13 @@ interface IngestDeckProps {
   onSelectClip: (clipId: string) => void;
   onScanRadar: () => void;
   onRunResearch: (focus: string) => Promise<void>;
+  onRunOpportunityDiscovery?: (payload: {
+    niche: ContentNiche | "all";
+    freshness: OpportunityGapFreshness;
+    customQuery?: string;
+  }) => Promise<void>;
+  onCreateClipFromDiscoveredTopic?: (topic: OpportunityGapTopic) => Promise<void>;
+  onSaveDiscoveredTopicToResearch?: (topicId: string) => Promise<void>;
   onUpdateKnowledgeConfig?: (patch: {
     enabled?: boolean;
     cadence?: KnowledgeCrawlCadence;
@@ -121,8 +134,10 @@ export function IngestDeck({
   config,
   uiMode,
   researchOpportunities,
+  opportunityDiscovery,
   knowledgeAcquisition,
   isResearching,
+  isDiscoveringOpportunities = false,
   isCrawlingKnowledge = false,
   isBuildingFaceless,
   selectedClipId,
@@ -133,6 +148,9 @@ export function IngestDeck({
   onSelectClip,
   onScanRadar,
   onRunResearch,
+  onRunOpportunityDiscovery,
+  onCreateClipFromDiscoveredTopic,
+  onSaveDiscoveredTopicToResearch,
   onUpdateKnowledgeConfig,
   onRunKnowledgeCrawl,
   onCreateClipFromOpportunity,
@@ -146,11 +164,19 @@ export function IngestDeck({
   onUpdateStreamerPolicies,
   onNotify,
 }: IngestDeckProps) {
-  const [deckMode, setDeckMode] = useState<"research" | "faceless" | "bin">(uiMode === "easy" ? "research" : "bin");
+  const [deckMode, setDeckMode] = useState<"discovery" | "research" | "faceless" | "bin">(
+    uiMode === "easy" ? "discovery" : "bin"
+  );
   const [researchFocus, setResearchFocus] = useState(
     "High-RPM viral short-form opportunities across Gaming, AI/Tech, Podcasts & Faceless Docs"
   );
   const [nicheFilter, setNicheFilter] = useState<"all" | ContentNiche>("all");
+  const [originFilter, setOriginFilter] = useState<"all" | "knowledge-acquisition" | "manual">("all");
+  const [showAddFeedForm, setShowAddFeedForm] = useState(false);
+  const [showCrawlHistory, setShowCrawlHistory] = useState(false);
+  const [newFeedName, setNewFeedName] = useState("");
+  const [newFeedUrl, setNewFeedUrl] = useState("");
+  const [newFeedCategory, setNewFeedCategory] = useState<KnowledgeSourceFeed["category"]>("creator-newsletter");
   const [statusFilter, setStatusFilter] = useState<"all" | QaStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
@@ -339,11 +365,28 @@ export function IngestDeck({
     <div className="flex-1 flex flex-col min-h-0">
       {/* Top Research vs. Media Bin Switcher */}
       <div className="px-4 sm:px-6 border-b border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#0D0F14] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setDeckMode("discovery")}
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
+              deckMode === "discovery"
+                ? "text-[#0F172A] dark:text-[#F1F5F9]"
+                : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
+            }`}
+          >
+            <Search className="w-3.5 h-3.5 text-[#E1392B]" />
+            <span>
+              Opportunity Discovery ({opportunityDiscovery?.topics?.length || 0})
+            </span>
+            {deckMode === "discovery" && (
+              <span className="absolute bottom-0 inset-x-0 h-[2px] bg-[#E1392B]" aria-hidden="true" />
+            )}
+          </button>
           <button
             type="button"
             onClick={() => setDeckMode("research")}
-            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
               deckMode === "research"
                 ? "text-[#0F172A] dark:text-[#F1F5F9]"
                 : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
@@ -358,7 +401,7 @@ export function IngestDeck({
           <button
             type="button"
             onClick={() => setDeckMode("faceless")}
-            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
               deckMode === "faceless"
                 ? "text-[#0F172A] dark:text-[#F1F5F9]"
                 : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
@@ -373,7 +416,7 @@ export function IngestDeck({
           <button
             type="button"
             onClick={() => setDeckMode("bin")}
-            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+            className={`relative py-3 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
               deckMode === "bin"
                 ? "text-[#0F172A] dark:text-[#F1F5F9]"
                 : "text-slate-500 hover:text-[#0F172A] dark:hover:text-slate-200"
@@ -387,12 +430,34 @@ export function IngestDeck({
           </button>
         </div>
 
-        <span className="hidden md:inline text-[11px] font-mono text-slate-500">
-          1of10 Outlier Radar · Multi-Niche Intake · Anti-Brainrot Faceless Studio
+        <span className="hidden xl:inline text-[11px] font-mono text-slate-500">
+          Google Search Gap Discovery · Multi-Niche Intake · Faceless Studio
         </span>
       </div>
 
-      {deckMode === "faceless" ? (
+      {deckMode === "discovery" ? (
+        <OpportunityDiscoveryPanel
+          clips={clips}
+          discovery={opportunityDiscovery}
+          isDiscovering={isDiscoveringOpportunities}
+          onRunDiscovery={async (payload) => {
+            if (onRunOpportunityDiscovery) {
+              await onRunOpportunityDiscovery(payload);
+            }
+          }}
+          onCreateClipFromTopic={async (topic) => {
+            if (onCreateClipFromDiscoveredTopic) {
+              await onCreateClipFromDiscoveredTopic(topic);
+            }
+          }}
+          onSaveTopicToResearch={async (topicId) => {
+            if (onSaveDiscoveredTopicToResearch) {
+              await onSaveDiscoveredTopicToResearch(topicId);
+            }
+          }}
+          onOpenClipInStudio={onOpenInStudio}
+        />
+      ) : deckMode === "faceless" ? (
         <div className="flex-1 bg-[#F6F7F9] dark:bg-[#0A0B0E] p-4 sm:p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-6 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] space-y-5 text-xs">
             <div className="space-y-1">
@@ -645,54 +710,195 @@ export function IngestDeck({
                 </div>
               </div>
 
-              {/* Tracked Newsletter & AI-Tool Feed Toggles */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                {knowledgeAcquisition.feeds.map((feed) => (
-                  <button
-                    key={feed.id}
-                    type="button"
-                    onClick={() => {
-                      if (!onUpdateKnowledgeConfig) return;
-                      const nextFeeds = knowledgeAcquisition.feeds.map((f) =>
-                        f.id === feed.id ? { ...f, enabled: !f.enabled } : f
-                      );
-                      onUpdateKnowledgeConfig({ feeds: nextFeeds });
+              {/* Tracked Newsletter & AI-Tool Feed Toggles + Custom Feed Adder */}
+              <div className="space-y-2.5 pt-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {knowledgeAcquisition.feeds.map((feed) => (
+                    <button
+                      key={feed.id}
+                      type="button"
+                      onClick={() => {
+                        if (!onUpdateKnowledgeConfig) return;
+                        const nextFeeds = knowledgeAcquisition.feeds.map((f) =>
+                          f.id === feed.id ? { ...f, enabled: !f.enabled } : f
+                        );
+                        onUpdateKnowledgeConfig({ feeds: nextFeeds });
+                      }}
+                      className={`px-2 py-1 rounded-sm border text-[11px] font-mono transition-colors ${
+                        feed.enabled
+                          ? "border-[#E1392B]/50 bg-[#E1392B]/10 text-[#0F172A] dark:text-[#F1F5F9]"
+                          : "border-[#D9DEE7] dark:border-[#252A36] text-slate-400 line-through"
+                      }`}
+                    >
+                      {feed.name}
+                    </button>
+                  ))}
+
+                  {onUpdateKnowledgeConfig && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddFeedForm((v) => !v)}
+                      className="px-2 py-1 rounded-sm border border-dashed border-[#D9DEE7] dark:border-[#2A303E] text-[11px] font-mono text-slate-500 hover:text-[#E1392B] hover:border-[#E1392B]/50 inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Feed</span>
+                    </button>
+                  )}
+                </div>
+
+                {showAddFeedForm && onUpdateKnowledgeConfig && (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!newFeedName.trim() || !newFeedUrl.trim()) return;
+                      const normalizedUrl = /^https?:\/\//i.test(newFeedUrl.trim())
+                        ? newFeedUrl.trim()
+                        : `https://${newFeedUrl.trim()}`;
+                      const added: KnowledgeSourceFeed = {
+                        id: `feed_custom_${Date.now().toString(36)}`,
+                        name: newFeedName.trim(),
+                        url: normalizedUrl,
+                        category: newFeedCategory,
+                        enabled: true,
+                      };
+                      await onUpdateKnowledgeConfig({
+                        feeds: [...knowledgeAcquisition.feeds, added],
+                      });
+                      setNewFeedName("");
+                      setNewFeedUrl("");
+                      setShowAddFeedForm(false);
                     }}
-                    className={`px-2 py-1 rounded-sm border text-[11px] font-mono transition-colors ${
-                      feed.enabled
-                        ? "border-[#E1392B]/50 bg-[#E1392B]/10 text-[#0F172A] dark:text-[#F1F5F9]"
-                        : "border-[#D9DEE7] dark:border-[#252A36] text-slate-400 line-through"
-                    }`}
+                    className="p-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F8F9FB] dark:bg-[#0D0F14] flex flex-wrap items-center gap-2 text-xs"
                   >
-                    {feed.name}
-                  </button>
-                ))}
+                    <input
+                      type="text"
+                      value={newFeedName}
+                      onChange={(e) => setNewFeedName(e.target.value)}
+                      placeholder="Newsletter / AI Tracker name (e.g., Superhuman AI)"
+                      className="flex-1 min-w-[180px] h-8 px-2.5 rounded-sm border border-[#D9DEE7] dark:border-[#2A303E] bg-white dark:bg-[#111318] text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={newFeedUrl}
+                      onChange={(e) => setNewFeedUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 min-w-[180px] h-8 px-2.5 rounded-sm border border-[#D9DEE7] dark:border-[#2A303E] bg-white dark:bg-[#111318] text-xs font-mono"
+                    />
+                    <select
+                      aria-label="Custom feed category"
+                      value={newFeedCategory}
+                      onChange={(e) => setNewFeedCategory(e.target.value as KnowledgeSourceFeed["category"])}
+                      className="h-8 px-2 rounded-sm border border-[#D9DEE7] dark:border-[#2A303E] bg-white dark:bg-[#111318] text-xs"
+                    >
+                      <option value="creator-newsletter">Creator Newsletter</option>
+                      <option value="ai-tools">AI Tools Tracker</option>
+                      <option value="platform-changelog">Platform Changelog</option>
+                    </select>
+                    <button
+                      type="submit"
+                      className="h-8 px-3 rounded-sm bg-[#E1392B] hover:bg-[#c83024] text-white font-semibold whitespace-nowrap"
+                    >
+                      Save Source
+                    </button>
+                  </form>
+                )}
               </div>
 
-              {/* Latest Background Run Summary */}
-              <div className="pt-2 border-t border-[#ECEFF3] dark:border-[#1E222C] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-500">
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-[#E1392B]" />
-                  <span>
-                    Runs: {knowledgeAcquisition.totalRuns} · Auto-Drafted: {knowledgeAcquisition.totalDrafted} · Next:{" "}
-                    {knowledgeAcquisition.nextRunAt
-                      ? new Date(knowledgeAcquisition.nextRunAt).toLocaleTimeString()
-                      : "Manual"}
+              {/* Latest Background Run Summary + Expandable Crawl Log */}
+              <div className="pt-2 border-t border-[#ECEFF3] dark:border-[#1E222C] space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 tabular-nums">
+                    <Clock className="w-3 h-3 text-[#E1392B]" />
+                    <span>
+                      Runs: {knowledgeAcquisition.totalRuns} · Auto-Drafted: {knowledgeAcquisition.totalDrafted} · Next:{" "}
+                      {knowledgeAcquisition.nextRunAt
+                        ? new Date(knowledgeAcquisition.nextRunAt).toLocaleTimeString()
+                        : "Manual"}
+                    </span>
                   </span>
-                </span>
-                {knowledgeAcquisition.recentRuns[0] && (
-                  <span className="truncate max-w-xl text-slate-600 dark:text-slate-300">
-                    Latest: {knowledgeAcquisition.recentRuns[0].headlineSummary}
-                  </span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {knowledgeAcquisition.recentRuns[0] && (
+                      <span className="truncate max-w-md text-slate-600 dark:text-slate-300">
+                        Latest: {knowledgeAcquisition.recentRuns[0].headlineSummary}
+                      </span>
+                    )}
+                    {knowledgeAcquisition.recentRuns.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCrawlHistory((v) => !v)}
+                        className="text-[#E1392B] hover:underline whitespace-nowrap shrink-0"
+                      >
+                        {showCrawlHistory ? "Hide Log" : `History (${knowledgeAcquisition.recentRuns.length})`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {showCrawlHistory && knowledgeAcquisition.recentRuns.length > 0 && (
+                  <div className="border-t border-[#ECEFF3] dark:border-[#1E222C] pt-2 space-y-1.5 text-[11px] font-mono">
+                    {knowledgeAcquisition.recentRuns.slice(0, 5).map((run) => (
+                      <div key={run.id} className="flex flex-wrap items-center justify-between gap-2 text-slate-500">
+                        <span className="text-slate-700 dark:text-slate-300 truncate max-w-2xl">
+                          [{run.trigger}] {run.headlineSummary} ({run.opportunitiesDrafted} cards)
+                        </span>
+                        <span className="tabular-nums shrink-0">
+                          {new Date(run.ranAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
           )}
 
+          {/* Origin Filter Row for Opportunity Cards */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center p-0.5 rounded-sm bg-[#ECEFF3] dark:bg-[#171A21] border border-[#D9DEE7] dark:border-[#262B37] text-xs">
+              {(
+                [
+                  { id: "all", label: `All Opportunities (${researchOpportunities.length})` },
+                  {
+                    id: "knowledge-acquisition",
+                    label: `Auto-Drafted by Crawler (${
+                      researchOpportunities.filter((o) => o.origin === "knowledge-acquisition").length
+                    })`,
+                  },
+                  {
+                    id: "manual",
+                    label: `Manual & Seed (${
+                      researchOpportunities.filter((o) => o.origin !== "knowledge-acquisition").length
+                    })`,
+                  },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setOriginFilter(tab.id)}
+                  className={`px-3 py-1 rounded-xs font-medium transition-colors whitespace-nowrap ${
+                    originFilter === tab.id
+                      ? "bg-white dark:bg-[#111318] text-[#0F172A] dark:text-white"
+                      : "text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Opportunity Cards Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {researchOpportunities
               .filter((o) => nicheFilter === "all" || o.niche === nicheFilter)
+              .filter((o) =>
+                originFilter === "all"
+                  ? true
+                  : originFilter === "knowledge-acquisition"
+                    ? o.origin === "knowledge-acquisition"
+                    : o.origin !== "knowledge-acquisition"
+              )
               .map((opp) => (
                 <article
                   key={opp.id}
@@ -700,13 +906,14 @@ export function IngestDeck({
                 >
                   <div className="space-y-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px]">
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0 text-slate-500">
                         {opp.origin === "knowledge-acquisition" && (
-                          <span className="px-1.5 py-0.5 rounded-xs border border-[#E1392B]/40 bg-[#E1392B]/10 text-[#E1392B] text-[10px] font-bold uppercase shrink-0">
-                            AUTO-DRAFTED
-                          </span>
+                          <>
+                            <span className="font-semibold text-[#E1392B] shrink-0">Auto-Drafted</span>
+                            <span aria-hidden="true">·</span>
+                          </>
                         )}
-                        <span className="uppercase font-semibold text-[#E1392B] truncate">
+                        <span className="font-semibold text-[#0F172A] dark:text-slate-200 truncate">
                           {opp.niche} · {opp.newsletterOrFeed || opp.source}
                         </span>
                       </div>

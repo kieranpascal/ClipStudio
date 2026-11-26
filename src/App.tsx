@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import type {
+  AiComputeRoutingConfig,
+  AiComputeTierId,
+  AuthUser,
   CaptionFontFamily,
   CaptionStylePreset,
   ChannelAccount,
   ClipItem,
   CompetitorBreakdown,
   ContentNiche,
+  CtaPlacementType,
   DirectorRunResult,
   DiscoveredAsset,
   DiscoveredAssetType,
   HookBannerPosition,
+  HostingStageId,
   KnowledgeCrawlCadence,
   KnowledgeSourceFeed,
   LayoutTemplate,
@@ -19,9 +24,12 @@ import type {
   MissionScheduleCadence,
   MissionStageId,
   MonetizationPlan,
+  OpportunityGapFreshness,
+  OpportunityGapTopic,
   PipelineConfig,
   ResearchOpportunity,
   SelfLearningCadence,
+  SocialPlatform,
   SourcePlatform,
   StrategyRecommendation,
   StreamerPolicyEntry,
@@ -41,10 +49,12 @@ import { AssetDiscoveryView } from "./components/AssetDiscoveryView";
 import { DistributionDeck } from "./components/DistributionDeck";
 import { AiDirectorDeck } from "./components/AiDirectorDeck";
 import { PerformanceMonitorView } from "./components/PerformanceMonitorView";
+import { MultimodalAiLabView } from "./components/MultimodalAiLabView";
 import { GitOpsView } from "./components/GitOpsView";
 import { PresentationDeck } from "./components/PresentationDeck";
 import { AiCommandBar } from "./components/AiCommandBar";
 import { SettingsHotkeysModal } from "./components/SettingsHotkeysModal";
+import { AuthAccountModal } from "./components/AuthAccountModal";
 import { DEFAULT_SLANG_DICTIONARY, resolveHotkeys } from "./utils/hotkeys";
 
 interface Notice {
@@ -67,6 +77,10 @@ export default function App() {
   const [isDark, setIsDark] = useState(true);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
 
   const [auditingClipId, setAuditingClipId] = useState<string | null>(null);
   const [generatingHooksClipId, setGeneratingHooksClipId] = useState<string | null>(null);
@@ -78,6 +92,7 @@ export default function App() {
   const [isDraftingScript, setIsDraftingScript] = useState(false);
   const [isGeneratingSeoFor, setIsGeneratingSeoFor] = useState<string | null>(null);
   const [isResearching, setIsResearching] = useState(false);
+  const [isDiscoveringOpportunities, setIsDiscoveringOpportunities] = useState(false);
   const [isChattingAgent, setIsChattingAgent] = useState(false);
   const [translatingLocale, setTranslatingLocale] = useState<SupportedLocale | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -97,10 +112,21 @@ export default function App() {
   const [isInjectingAsset, setIsInjectingAsset] = useState(false);
   const [isOptimizingMonetization, setIsOptimizingMonetization] = useState(false);
   const [isProjectingRevenue, setIsProjectingRevenue] = useState(false);
+  const [isAnalyzingFunnel, setIsAnalyzingFunnel] = useState(false);
+  const [isApplyingFunnelWinner, setIsApplyingFunnelWinner] = useState(false);
+  const [isScanningAlerts, setIsScanningAlerts] = useState(false);
+  const [shiftingAlertId, setShiftingAlertId] = useState<string | null>(null);
   const [isRunningSelfLearn, setIsRunningSelfLearn] = useState(false);
   const [isCrawlingKnowledge, setIsCrawlingKnowledge] = useState(false);
   const [adoptingDiscoveryId, setAdoptingDiscoveryId] = useState<string | null>(null);
-  const [autopilotSubTab, setAutopilotSubTab] = useState<"mission" | "monetization" | "agent" | "compute" | "voice">("mission");
+  const [isResearchingExpansion, setIsResearchingExpansion] = useState(false);
+  const [applyingPatternId, setApplyingPatternId] = useState<string | null>(null);
+  const [removingPlatform, setRemovingPlatform] = useState<SocialPlatform | null>(null);
+  const [isAnalyzingAbTest, setIsAnalyzingAbTest] = useState(false);
+  const [isBakingWinner, setIsBakingWinner] = useState(false);
+  const [autopilotSubTab, setAutopilotSubTab] = useState<
+    "mission" | "monetization" | "expansion" | "agent" | "compute" | "voice"
+  >("mission");
   const [directorHistory, setDirectorHistory] = useState<DirectorRunResult[]>([]);
   const [recommendation, setRecommendation] = useState<StrategyRecommendation | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -114,7 +140,7 @@ export default function App() {
     }
     if (
       nextMode === "easy" &&
-      !["studio", "ingest", "performance", "autopilot", "distribution"].includes(activeTab)
+      !["studio", "ingest", "ai-lab", "performance", "autopilot", "distribution"].includes(activeTab)
     ) {
       setActiveTab("studio");
     }
@@ -135,6 +161,7 @@ export default function App() {
       } else if (e.key === "Escape") {
         setCommandBarOpen(false);
         setSettingsOpen(false);
+        setAccountOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -177,15 +204,29 @@ export default function App() {
 
   useEffect(() => {
     loadWorkspace();
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.supabaseConfigured === "boolean") {
+          setSupabaseConfigured(data.supabaseConfigured);
+        }
+      })
+      .catch(() => {
+        // Ignore silent auth status check failures
+      });
   }, []);
 
   const counts = useMemo(() => {
     const clips = workspace?.clips || [];
+    const activeAlerts = (workspace?.revenueAlerts || []).filter(
+      (a) => a.status === "active"
+    ).length;
     return {
       pendingQa: clips.filter((c) => c.qaStatus === "pending").length,
       readyToPublish: clips.filter((c) => c.publishStatus === "ready" || c.publishStatus === "scheduled").length,
+      activeAlerts,
     };
-  }, [workspace?.clips]);
+  }, [workspace?.clips, workspace?.revenueAlerts]);
 
   async function handleScanRadar() {
     setIsScanning(true);
@@ -904,6 +945,131 @@ export default function App() {
     showNotice("success", `Created "${opp.topic}" and opened Studio Voiceover Engine.`);
   }
 
+  async function handleRunOpportunityDiscovery(payload: {
+    niche: ContentNiche | "all";
+    freshness: OpportunityGapFreshness;
+    customQuery?: string;
+  }) {
+    setIsDiscoveringOpportunities(true);
+    try {
+      const res = await fetch("/api/ingest/opportunity-discovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Opportunity Discovery Google Search scan failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              opportunityDiscovery: data.opportunityDiscovery,
+              computeRouting: data.computeRouting || prev.computeRouting,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Found ${data.opportunityDiscovery?.topics?.length || 0} uncovered niche topics via live Google Search.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice(
+        "error",
+        err instanceof Error ? err.message : "Opportunity Discovery Google Search scan failed."
+      );
+    } finally {
+      setIsDiscoveringOpportunities(false);
+    }
+  }
+
+  async function handleCreateClipFromDiscoveredTopic(topic: OpportunityGapTopic) {
+    const res = await fetch("/api/clips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: topic.topic,
+        streamerName: topic.sourceTitle || "Google Search Discovery",
+        sourcePlatform:
+          topic.niche === "podcasts"
+            ? "YouTube Podcast"
+            : topic.niche === "gaming"
+              ? "Twitch"
+              : "X / News",
+        sourceUrl: topic.sourceUrl || "",
+        gameCategory: topic.subCategory || topic.niche.toUpperCase(),
+        niche: topic.niche,
+        views: 14500,
+        ageMinutes: 18,
+        durationSec: 32,
+        duplicateCrossPosts: 0,
+        transcript: `${topic.suggestedHook} ${topic.angleBrief}`,
+      }),
+    });
+    const created = await res.json();
+    if (!res.ok) {
+      showNotice("error", created.error || "Could not create clip draft from discovered topic.");
+      return;
+    }
+
+    const templateMap: Record<OpportunityGapTopic["recommendedFormat"], LayoutTemplate> = {
+      "split-screen": "split-stack",
+      "faceless-narration": "blurred-backdrop",
+      "podcast-split": "dual-cam",
+      "authority-breakdown": "blurred-backdrop",
+    };
+
+    await fetch(`/api/clips/${encodeURIComponent(created.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        niche: topic.niche,
+        layout: {
+          ...created.layout,
+          template: templateMap[topic.recommendedFormat],
+          hookBannerText: topic.suggestedHook,
+          showHookBanner: true,
+        },
+      }),
+    });
+
+    await fetch(`/api/ingest/opportunity-discovery/${encodeURIComponent(topic.id)}/promote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "clip", clipId: created.id }),
+    });
+
+    await loadWorkspace();
+    setSelectedClipId(created.id);
+    setActiveTab("studio");
+    showNotice("success", `Created clip draft from uncovered topic "${topic.topic}" and opened Studio.`);
+  }
+
+  async function handleSaveDiscoveredTopicToResearch(topicId: string) {
+    try {
+      const res = await fetch(`/api/ingest/opportunity-discovery/${encodeURIComponent(topicId)}/promote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "research" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save topic to Research queue.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              opportunityDiscovery: data.opportunityDiscovery || prev.opportunityDiscovery,
+              researchOpportunities: data.researchOpportunities || prev.researchOpportunities,
+            }
+          : prev
+      );
+      showNotice("success", "Saved uncovered topic to your Research Opportunities queue.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not save topic to Research queue.");
+    }
+  }
+
   async function handleSendAgentMessage(message: string) {
     setIsChattingAgent(true);
     try {
@@ -1479,6 +1645,410 @@ export default function App() {
     }
   }
 
+  async function handleUpdateExpansionConfig(patch: {
+    autoSyncToDistribution?: boolean;
+    autoTargetMinScore?: number;
+    focusNiche?: ContentNiche | "all";
+  }) {
+    try {
+      const res = await fetch("/api/expansion/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update Platform Expansion config.");
+      setWorkspace((prev) => (prev ? { ...prev, platformExpansion: data.platformExpansion } : prev));
+      showNotice("success", "Updated Platform Expansion auto-sync settings.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update Platform Expansion config.");
+    }
+  }
+
+  async function handleResearchExpansion(payload: {
+    focusNiche?: ContentNiche | "all";
+    customQuery?: string;
+    autoApplyNow?: boolean;
+  }) {
+    setIsResearchingExpansion(true);
+    try {
+      const res = await fetch("/api/ai/expansion/research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Secondary platform research failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              platformExpansion: data.platformExpansion,
+              config: data.config || prev.config,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      const applied = Array.isArray(data.autoAppliedPlatforms) ? data.autoAppliedPlatforms : [];
+      showNotice(
+        "success",
+        applied.length > 0
+          ? `Researched ${data.platformExpansion?.patterns?.length || 0} secondary formats and auto-targeted ${applied.join(", ")} in Distribution Config.`
+          : `Researched ${data.platformExpansion?.patterns?.length || 0} viral growth patterns across secondary platforms.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Secondary platform research failed.");
+    } finally {
+      setIsResearchingExpansion(false);
+    }
+  }
+
+  async function handleApplyExpansionPattern(payload: {
+    patternId?: string;
+    applyAllHighScore?: boolean;
+  }) {
+    setApplyingPatternId(payload.applyAllHighScore ? "__bulk__" : payload.patternId || "__single__");
+    try {
+      const res = await fetch("/api/expansion/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not apply platform expansion to Distribution Config.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              config: data.config || prev.config,
+              platformExpansion: data.platformExpansion || prev.platformExpansion,
+            }
+          : prev
+      );
+      showNotice("success", data.summary || "Updated Distribution Config with secondary platform target.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update Distribution Config.");
+    } finally {
+      setApplyingPatternId(null);
+    }
+  }
+
+  async function handleRemoveExpansionPlatform(platform: SocialPlatform) {
+    setRemovingPlatform(platform);
+    try {
+      const res = await fetch("/api/expansion/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not remove secondary platform.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              config: data.config || prev.config,
+              platformExpansion: data.platformExpansion || prev.platformExpansion,
+            }
+          : prev
+      );
+      showNotice("success", data.summary || `Removed ${platform} from Distribution Config.`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not remove secondary platform.");
+    } finally {
+      setRemovingPlatform(null);
+    }
+  }
+
+  async function handleApplyRecommendedCadence(patch: {
+    scheduleCron: string;
+    maxPostsPerDay: number;
+    minSpacingMinutes: number;
+    staggerJitterMinutes: number;
+    summary: string;
+  }) {
+    if (!workspace) return;
+    const nextConfig: PipelineConfig = {
+      ...workspace.config,
+      scheduleCron: patch.scheduleCron,
+      publishing: {
+        ...workspace.config.publishing,
+        maxPostsPerDay: patch.maxPostsPerDay,
+        minSpacingMinutes: patch.minSpacingMinutes,
+        staggerJitterMinutes: patch.staggerJitterMinutes,
+      },
+    };
+    await handleSaveConfig(nextConfig);
+    showNotice("success", patch.summary);
+  }
+
+  async function handleRunAbTestAnalysis(payload: {
+    focusNiche?: ContentNiche | "all";
+    experimentGoal?: string;
+  }) {
+    setIsAnalyzingAbTest(true);
+    try {
+      const res = await fetch("/api/ai/ab-test/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "A/B Test analysis failed.");
+      setWorkspace((prev) => (prev ? { ...prev, abTestAnalysis: data.abTestAnalysis } : prev));
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Gemini A/B Test winner identified: ${data.abTestAnalysis?.winnerLabel || "Top Variant"} (${data.abTestAnalysis?.confidencePct || 92}% confidence).`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "A/B Test analysis failed.");
+    } finally {
+      setIsAnalyzingAbTest(false);
+    }
+  }
+
+  async function handleBakeAbWinnerToConfig() {
+    setIsBakingWinner(true);
+    try {
+      const res = await fetch("/api/ab-test/bake-winner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not bake Winner into Pipeline config.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              config: data.config || prev.config,
+              abTestAnalysis: data.abTestAnalysis || prev.abTestAnalysis,
+            }
+          : prev
+      );
+      showNotice("success", data.summary || "Baked A/B Test Winner into default Pipeline configuration.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not bake Winner into Pipeline config.");
+    } finally {
+      setIsBakingWinner(false);
+    }
+  }
+
+  async function handleAddFunnelVariant(payload: {
+    label: string;
+    placement: CtaPlacementType;
+    triggerSecond: number;
+    ctaCopy: string;
+    sponsorBrand: string;
+    niche: ContentNiche;
+    impressions: number;
+    ctrPct: number;
+    conversionRatePct: number;
+    retentionImpactPct: number;
+    avgDealValueUsd: number;
+  }) {
+    try {
+      const res = await fetch("/api/monetization/funnel-tests/variant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not add CTA funnel variant.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              monetizationPlan: prev.monetizationPlan
+                ? { ...prev.monetizationPlan, funnelTest: data.funnelTest }
+                : prev.monetizationPlan,
+            }
+          : prev
+      );
+      showNotice("success", `Added CTA funnel variant "${payload.label}".`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not add CTA funnel variant.");
+    }
+  }
+
+  async function handleAnalyzeFunnel(focusSponsor?: string) {
+    setIsAnalyzingFunnel(true);
+    try {
+      const res = await fetch("/api/ai/monetization/funnel-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ focusSponsor }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Funnel analysis failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              monetizationPlan: prev.monetizationPlan
+                ? { ...prev.monetizationPlan, funnelTest: data.funnelTest }
+                : prev.monetizationPlan,
+              computeRouting: data.computeRouting || prev.computeRouting,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `CTA Funnel Winner: ${data.funnelTest?.winnerLabel || "Top Placement"} (${data.funnelTest?.confidencePct || 93}% confidence).`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Funnel analysis failed.");
+    } finally {
+      setIsAnalyzingFunnel(false);
+    }
+  }
+
+  async function handleApplyFunnelWinner() {
+    setIsApplyingFunnelWinner(true);
+    try {
+      const res = await fetch("/api/monetization/funnel-tests/apply-winner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not apply winning CTA placement.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              config: data.config || prev.config,
+              clips: data.clips || prev.clips,
+              monetizationPlan: prev.monetizationPlan
+                ? { ...prev.monetizationPlan, funnelTest: data.funnelTest || prev.monetizationPlan.funnelTest }
+                : prev.monetizationPlan,
+            }
+          : prev
+      );
+      showNotice("success", data.summary || "Applied winning CTA placement to Brand Kit & active clips.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not apply winning CTA placement.");
+    } finally {
+      setIsApplyingFunnelWinner(false);
+    }
+  }
+
+  async function handleScanRevenueAlerts(sponsorConvRatePct: number, sponsorAvgOrderUsd: number) {
+    setIsScanningAlerts(true);
+    try {
+      const res = await fetch("/api/performance/revenue-alerts/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sponsorConvRatePct, sponsorAvgOrderUsd }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Revenue alert scan failed.");
+      setWorkspace((prev) => (prev ? { ...prev, revenueAlerts: data.revenueAlerts || [] } : prev));
+      showNotice(
+        "success",
+        data.summary || `ROI scan complete — ${data.newAlertsCount || 0} new +15% surge alert(s) detected.`
+      );
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Revenue alert scan failed.");
+    } finally {
+      setIsScanningAlerts(false);
+    }
+  }
+
+  async function handleShiftAlertFocus(alertId: string) {
+    setShiftingAlertId(alertId);
+    try {
+      const res = await fetch(`/api/performance/revenue-alerts/${encodeURIComponent(alertId)}/shift-focus`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not shift AI Director focus.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              config: data.config || prev.config,
+              revenueAlerts: data.revenueAlerts || prev.revenueAlerts,
+            }
+          : prev
+      );
+      showNotice("success", data.summary || "Shifted AI Director focus to surging ROI niche.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not shift AI Director focus.");
+    } finally {
+      setShiftingAlertId(null);
+    }
+  }
+
+  async function handleDismissRevenueAlert(alertId: string) {
+    try {
+      const res = await fetch(`/api/performance/revenue-alerts/${encodeURIComponent(alertId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "dismissed" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not dismiss alert.");
+      setWorkspace((prev) => (prev ? { ...prev, revenueAlerts: data.revenueAlerts || prev.revenueAlerts } : prev));
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not dismiss alert.");
+    }
+  }
+
+  async function handleUpdateComputeRouting(patch: {
+    activeTier?: AiComputeTierId;
+    hostingStage?: HostingStageId;
+    monthlyBudgetCapUsd?: number;
+    autoDowngradeOnBudgetCap?: boolean;
+    windowsPcEndpoint?: string;
+    windowsPcModel?: string;
+    topUpCredits?: number;
+    resetSpend?: boolean;
+  }) {
+    try {
+      const res = await fetch("/api/compute/routing", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update compute routing.");
+      setWorkspace((prev) => (prev ? { ...prev, computeRouting: data.computeRouting } : prev));
+      showNotice("success", "Updated AI compute tier, credits, and hosting stage.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update compute routing.");
+    }
+  }
+
+  function handleSyncComputeRouting(routing: AiComputeRoutingConfig) {
+    setWorkspace((prev) => (prev ? { ...prev, computeRouting: routing } : prev));
+  }
+
+  async function handleApplyTranscriptToClip(clipId: string, transcript: string) {
+    await handleUpdateClip(clipId, { transcript });
+    showNotice("success", "Applied transcribed audio text directly to clip captions.");
+  }
+
+  async function handleLogout() {
+    try {
+      if (authToken) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+      }
+    } catch {
+      // Clear local session state regardless of network response
+    }
+    setAuthToken(null);
+    setAuthUser(null);
+    showNotice("success", "Signed out of your workspace account.");
+  }
+
   const resolvedHotkeys = useMemo(
     () => resolveHotkeys(workspace?.config.hotkeys),
     [workspace?.config.hotkeys]
@@ -1503,10 +2073,13 @@ export default function App() {
         onToggleTheme={() => setIsDark((d) => !d)}
         onOpenCommandBar={() => setCommandBarOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenAccount={() => setAccountOpen(true)}
+        authUser={authUser}
         onRunPipeline={() => handleDispatchPipeline(true)}
         isRunningPipeline={isRunningPipeline}
         pendingCount={counts.pendingQa}
         readyCount={counts.readyToPublish}
+        activeAlertCount={counts.activeAlerts}
       />
 
       {notice && (
@@ -1585,8 +2158,10 @@ export default function App() {
                 config={workspace.config}
                 uiMode={uiMode}
                 researchOpportunities={workspace.researchOpportunities || []}
+                opportunityDiscovery={workspace.opportunityDiscovery}
                 knowledgeAcquisition={workspace.knowledgeAcquisition}
                 isResearching={isResearching}
+                isDiscoveringOpportunities={isDiscoveringOpportunities}
                 isCrawlingKnowledge={isCrawlingKnowledge}
                 isBuildingFaceless={isBuildingFaceless}
                 selectedClipId={selectedClipId}
@@ -1597,6 +2172,9 @@ export default function App() {
                 onSelectClip={setSelectedClipId}
                 onScanRadar={handleScanRadar}
                 onRunResearch={handleRunResearch}
+                onRunOpportunityDiscovery={handleRunOpportunityDiscovery}
+                onCreateClipFromDiscoveredTopic={handleCreateClipFromDiscoveredTopic}
+                onSaveDiscoveredTopicToResearch={handleSaveDiscoveredTopicToResearch}
                 onUpdateKnowledgeConfig={handleUpdateKnowledgeConfig}
                 onRunKnowledgeCrawl={handleRunKnowledgeCrawl}
                 onCreateClipFromOpportunity={handleCreateClipFromOpportunity}
@@ -1670,6 +2248,21 @@ export default function App() {
               />
             )}
 
+            {activeTab === "ai-lab" && (
+              <MultimodalAiLabView
+                clips={workspace.clips}
+                selectedClipId={selectedClipId}
+                computeRouting={workspace.computeRouting}
+                onSyncComputeRouting={handleSyncComputeRouting}
+                onApplyTranscriptToClip={handleApplyTranscriptToClip}
+                onJumpToComputeHub={() => {
+                  setAutopilotSubTab("compute");
+                  setActiveTab("autopilot");
+                }}
+                onNotify={showNotice}
+              />
+            )}
+
             {activeTab === "distribution" && (
               <DistributionDeck
                 clips={workspace.clips}
@@ -1705,15 +2298,22 @@ export default function App() {
                 monetizationPlan={workspace.monetizationPlan}
                 selfLearning={workspace.selfLearning}
                 knowledgeAcquisition={workspace.knowledgeAcquisition}
+                platformExpansion={workspace.platformExpansion}
+                computeRouting={workspace.computeRouting}
                 initialSubTab={autopilotSubTab}
                 isStartingMission={isStartingMission}
                 isAdvancingMission={isAdvancingMission}
                 isScanningNews={isScanningNews}
                 isOptimizingMonetization={isOptimizingMonetization}
                 isProjectingRevenue={isProjectingRevenue}
+                isAnalyzingFunnel={isAnalyzingFunnel}
+                isApplyingFunnelWinner={isApplyingFunnelWinner}
                 isRunningSelfLearn={isRunningSelfLearn}
                 isCrawlingKnowledge={isCrawlingKnowledge}
                 adoptingDiscoveryId={adoptingDiscoveryId}
+                isResearchingExpansion={isResearchingExpansion}
+                applyingPatternId={applyingPatternId}
+                removingPlatform={removingPlatform}
                 isFetchingTrends={isFetchingTrends}
                 isDirecting={isDirecting}
                 isChattingAgent={isChattingAgent}
@@ -1725,11 +2325,20 @@ export default function App() {
                 onUpdateMonetizationPlan={handleUpdateMonetizationPlan}
                 onOptimizeMonetization={handleOptimizeMonetization}
                 onProjectRevenue={handleProjectRevenue}
+                onAddFunnelVariant={handleAddFunnelVariant}
+                onAnalyzeFunnel={handleAnalyzeFunnel}
+                onApplyFunnelWinner={handleApplyFunnelWinner}
+                onUpdateComputeRouting={handleUpdateComputeRouting}
                 onUpdateSelfLearnConfig={handleUpdateSelfLearnConfig}
                 onRunSelfLearningCycle={handleRunSelfLearningCycle}
                 onAdoptDiscovery={handleAdoptDiscovery}
                 onRunKnowledgeCrawl={handleRunKnowledgeCrawl}
                 onOpenIngestOpportunities={() => setActiveTab("ingest")}
+                onUpdateExpansionConfig={handleUpdateExpansionConfig}
+                onResearchExpansion={handleResearchExpansion}
+                onApplyExpansionPattern={handleApplyExpansionPattern}
+                onRemoveExpansionPlatform={handleRemoveExpansionPlatform}
+                onOpenDistributionTab={() => setActiveTab("distribution")}
                 onOpenClipInStudio={(id) => {
                   setSelectedClipId(id);
                   setActiveTab("studio");
@@ -1751,13 +2360,26 @@ export default function App() {
                 clips={workspace.clips}
                 config={workspace.config}
                 uiMode={uiMode}
+                monetizationPlan={workspace.monetizationPlan}
+                abTestAnalysis={workspace.abTestAnalysis}
+                revenueAlerts={workspace.revenueAlerts || []}
                 viralSentiment={workspace.viralSentiment}
                 isScanningSentiment={isScanningSentiment}
                 isApplyingSentiment={isApplyingSentiment}
+                isAnalyzingAbTest={isAnalyzingAbTest}
+                isBakingWinner={isBakingWinner}
+                isScanningAlerts={isScanningAlerts}
+                shiftingAlertId={shiftingAlertId}
                 isGeneratingSeoFor={isGeneratingSeoFor}
                 onGenerateSeo={handleGenerateSeo}
                 onScanViralSentiment={handleScanViralSentiment}
                 onApplySentimentToDirector={handleApplySentimentToDirector}
+                onApplyRecommendedCadence={handleApplyRecommendedCadence}
+                onRunAbTestAnalysis={handleRunAbTestAnalysis}
+                onBakeAbWinnerToConfig={handleBakeAbWinnerToConfig}
+                onScanRevenueAlerts={handleScanRevenueAlerts}
+                onShiftAlertFocus={handleShiftAlertFocus}
+                onDismissRevenueAlert={handleDismissRevenueAlert}
                 onOpenInStudio={(id) => {
                   setSelectedClipId(id);
                   setActiveTab("studio");
@@ -1831,6 +2453,19 @@ export default function App() {
           onSaveConfig={handleSaveConfig}
         />
       )}
+
+      <AuthAccountModal
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        user={authUser}
+        supabaseConfigured={supabaseConfigured}
+        onAuthSuccess={(token, user) => {
+          setAuthToken(token);
+          setAuthUser(user);
+          showNotice("success", `Signed in as ${user.displayName} (${user.email}).`);
+        }}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { Moon, Sun, Play, Loader2, Command, Settings } from "lucide-react";
-import type { UiMode, WorkspaceTab } from "../types";
+import { Moon, Sun, Play, Loader2, Command, Settings, User } from "lucide-react";
+import type { AuthUser, UiMode, WorkspaceTab } from "../types";
 
 interface TopBarProps {
   activeTab: WorkspaceTab;
@@ -10,15 +10,19 @@ interface TopBarProps {
   onToggleTheme: () => void;
   onOpenCommandBar: () => void;
   onOpenSettings: () => void;
+  onOpenAccount: () => void;
+  authUser: AuthUser | null;
   onRunPipeline: () => void;
   isRunningPipeline: boolean;
   pendingCount: number;
   readyCount: number;
+  activeAlertCount: number;
 }
 
 const EASY_TABS: Array<{ id: WorkspaceTab; label: string }> = [
   { id: "studio", label: "Studio" },
   { id: "ingest", label: "Research" },
+  { id: "ai-lab", label: "AI Lab" },
   { id: "performance", label: "Performance" },
   { id: "autopilot", label: "AI Agent" },
   { id: "distribution", label: "Publish" },
@@ -30,6 +34,7 @@ const ADVANCED_TABS: Array<{ id: WorkspaceTab; label: string }> = [
   { id: "vod", label: "VOD" },
   { id: "templates", label: "Templates" },
   { id: "assets", label: "Assets" },
+  { id: "ai-lab", label: "AI Lab" },
   { id: "distribution", label: "Publish" },
   { id: "autopilot", label: "AI Agent" },
   { id: "performance", label: "Performance" },
@@ -46,10 +51,13 @@ export function TopBar({
   onToggleTheme,
   onOpenCommandBar,
   onOpenSettings,
+  onOpenAccount,
+  authUser,
   onRunPipeline,
   isRunningPipeline,
   pendingCount,
   readyCount,
+  activeAlertCount,
 }: TopBarProps) {
   const tabs = uiMode === "easy" ? EASY_TABS : ADVANCED_TABS;
 
@@ -65,19 +73,22 @@ export function TopBar({
         <span>ClipForge</span>
       </button>
 
-      {/* Zone 2: Single-Line Navigation (Easy 5-tab or Pro 9-tab with Performance next to GitOps) */}
+      {/* Zone 2: Single-Line Navigation */}
       <nav
-        className="flex items-center gap-4 lg:gap-5 h-full overflow-x-auto no-scrollbar"
+        className="flex items-center gap-3.5 lg:gap-4 h-full overflow-x-auto no-scrollbar"
         aria-label="Workspace sections"
       >
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
+          const isAlertTab = tab.id === "performance" && activeAlertCount > 0;
           const count =
             tab.id === "ingest" && pendingCount > 0
               ? pendingCount
               : tab.id === "distribution" && readyCount > 0
                 ? readyCount
-                : null;
+                : isAlertTab
+                  ? activeAlertCount
+                  : null;
           return (
             <button
               key={tab.id}
@@ -91,8 +102,14 @@ export function TopBar({
             >
               <span>{tab.label}</span>
               {count !== null && (
-                <span className="font-mono text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
-                  {count}
+                <span
+                  className={`font-mono text-[10px] tabular-nums ${
+                    isAlertTab
+                      ? "text-[#E1392B] font-bold"
+                      : "text-slate-400 dark:text-slate-500"
+                  }`}
+                >
+                  {isAlertTab ? `!${count}` : count}
                 </span>
               )}
               {active && (
@@ -106,7 +123,7 @@ export function TopBar({
         })}
       </nav>
 
-      {/* Zone 3: Easy/Pro Switch + AI Command Palette + Settings/Hotkeys + Theme + Dispatch */}
+      {/* Zone 3: Easy/Pro Switch + AI Command Palette + Account + Settings + Theme + Dispatch */}
       <div className="flex items-center gap-2 shrink-0">
         <div
           role="group"
@@ -146,6 +163,19 @@ export function TopBar({
           <Command className="w-3.5 h-3.5 text-[#E1392B]" />
           <span className="hidden xl:inline">AI</span>
           <kbd className="text-[10px] text-slate-400">⌘K</kbd>
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenAccount}
+          title={authUser ? `Signed in as ${authUser.displayName}` : "Account & Database Sync"}
+          aria-label="Account and Database Sync"
+          className="h-9 px-2.5 rounded-sm border border-[#D9DEE7] dark:border-[#252A36] bg-[#F6F7F9] dark:bg-[#141720] text-slate-600 dark:text-slate-300 hover:text-[#0F172A] dark:hover:text-white hover:border-[#E1392B] text-xs font-medium inline-flex items-center gap-1.5 transition-colors shrink-0"
+        >
+          <User className={`w-3.5 h-3.5 ${authUser ? "text-emerald-500" : ""}`} />
+          <span className="hidden xl:inline max-w-[76px] truncate">
+            {authUser ? authUser.displayName : "Account"}
+          </span>
         </button>
 
         <button

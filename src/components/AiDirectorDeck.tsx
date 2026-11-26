@@ -19,10 +19,15 @@ import {
 } from "lucide-react";
 import type {
   AgentChatMessage,
+  AiComputeRoutingConfig,
+  AiComputeTierId,
   AiDirectorPolicy,
   AutonomousMission,
   CompetitorBreakdown,
+  ContentNiche,
+  CtaPlacementType,
   DirectorRunResult,
+  HostingStageId,
   IndustryNewsSnapshot,
   KnowledgeAcquisitionState,
   LearningDiscoveryType,
@@ -32,14 +37,18 @@ import type {
   MissionStageId,
   MonetizationPlan,
   PipelineConfig,
+  PlatformExpansionState,
   SelfLearningCadence,
   SelfLearningState,
+  SocialPlatform,
   TrendPulseSnapshot,
   UiMode,
 } from "../types";
 import { TrendPulseWidget } from "./TrendPulseWidget";
 import { AutonomousMissionHub } from "./AutonomousMissionHub";
 import { MonetizationGrowthHub } from "./MonetizationGrowthHub";
+import { PlatformExpansionHub } from "./PlatformExpansionHub";
+import { ComputeHostingHub } from "./ComputeHostingHub";
 
 interface WorkerPackData {
   windowsPs1: string;
@@ -66,15 +75,22 @@ interface AiDirectorDeckProps {
   monetizationPlan?: MonetizationPlan;
   selfLearning?: SelfLearningState;
   knowledgeAcquisition?: KnowledgeAcquisitionState;
-  initialSubTab?: "mission" | "monetization" | "agent" | "compute" | "voice";
+  platformExpansion?: PlatformExpansionState;
+  computeRouting?: AiComputeRoutingConfig;
+  initialSubTab?: "mission" | "monetization" | "expansion" | "agent" | "compute" | "voice";
   isStartingMission: boolean;
   isAdvancingMission: boolean;
   isScanningNews: boolean;
   isOptimizingMonetization?: boolean;
   isProjectingRevenue?: boolean;
+  isAnalyzingFunnel?: boolean;
+  isApplyingFunnelWinner?: boolean;
   isRunningSelfLearn?: boolean;
   isCrawlingKnowledge?: boolean;
   adoptingDiscoveryId?: string | null;
+  isResearchingExpansion?: boolean;
+  applyingPatternId?: string | null;
+  removingPlatform?: SocialPlatform | null;
   isFetchingTrends: boolean;
   isDirecting: boolean;
   isChattingAgent: boolean;
@@ -99,6 +115,31 @@ interface AiDirectorDeckProps {
   onUpdateMonetizationPlan?: (patch: Partial<MonetizationPlan>) => Promise<void>;
   onOptimizeMonetization?: () => Promise<void>;
   onProjectRevenue?: (payload?: { horizonMonths?: number; dailyPostsTarget?: number }) => Promise<void>;
+  onAddFunnelVariant?: (payload: {
+    label: string;
+    placement: CtaPlacementType;
+    triggerSecond: number;
+    ctaCopy: string;
+    sponsorBrand: string;
+    niche: ContentNiche;
+    impressions: number;
+    ctrPct: number;
+    conversionRatePct: number;
+    retentionImpactPct: number;
+    avgDealValueUsd: number;
+  }) => Promise<void>;
+  onAnalyzeFunnel?: (focusSponsor?: string) => Promise<void>;
+  onApplyFunnelWinner?: () => Promise<void>;
+  onUpdateComputeRouting?: (patch: {
+    activeTier?: AiComputeTierId;
+    hostingStage?: HostingStageId;
+    monthlyBudgetCapUsd?: number;
+    autoDowngradeOnBudgetCap?: boolean;
+    windowsPcEndpoint?: string;
+    windowsPcModel?: string;
+    topUpCredits?: number;
+    resetSpend?: boolean;
+  }) => Promise<void>;
   onUpdateSelfLearnConfig?: (patch: {
     enabled?: boolean;
     cadence?: SelfLearningCadence;
@@ -109,6 +150,22 @@ interface AiDirectorDeckProps {
   onAdoptDiscovery?: (discoveryId: string) => Promise<void>;
   onRunKnowledgeCrawl?: (customTopic?: string) => Promise<void>;
   onOpenIngestOpportunities?: () => void;
+  onUpdateExpansionConfig?: (patch: {
+    autoSyncToDistribution?: boolean;
+    autoTargetMinScore?: number;
+    focusNiche?: ContentNiche | "all";
+  }) => Promise<void>;
+  onResearchExpansion?: (payload: {
+    focusNiche?: ContentNiche | "all";
+    customQuery?: string;
+    autoApplyNow?: boolean;
+  }) => Promise<void>;
+  onApplyExpansionPattern?: (payload: {
+    patternId?: string;
+    applyAllHighScore?: boolean;
+  }) => Promise<void>;
+  onRemoveExpansionPlatform?: (platform: SocialPlatform) => Promise<void>;
+  onOpenDistributionTab?: () => void;
   onOpenClipInStudio: (clipId: string) => void;
   onFetchTrends: (focus: string) => Promise<void>;
   onToggleTrendPin: (topicId: string) => Promise<void>;
@@ -170,15 +227,22 @@ export function AiDirectorDeck({
   monetizationPlan,
   selfLearning,
   knowledgeAcquisition,
+  platformExpansion,
+  computeRouting,
   initialSubTab = "mission",
   isStartingMission,
   isAdvancingMission,
   isScanningNews,
   isOptimizingMonetization = false,
   isProjectingRevenue = false,
+  isAnalyzingFunnel = false,
+  isApplyingFunnelWinner = false,
   isRunningSelfLearn = false,
   isCrawlingKnowledge = false,
   adoptingDiscoveryId = null,
+  isResearchingExpansion = false,
+  applyingPatternId = null,
+  removingPlatform = null,
   isFetchingTrends,
   isDirecting,
   isChattingAgent,
@@ -190,11 +254,20 @@ export function AiDirectorDeck({
   onUpdateMonetizationPlan,
   onOptimizeMonetization,
   onProjectRevenue,
+  onAddFunnelVariant,
+  onAnalyzeFunnel,
+  onApplyFunnelWinner,
+  onUpdateComputeRouting,
   onUpdateSelfLearnConfig,
   onRunSelfLearningCycle,
   onAdoptDiscovery,
   onRunKnowledgeCrawl,
   onOpenIngestOpportunities,
+  onUpdateExpansionConfig,
+  onResearchExpansion,
+  onApplyExpansionPattern,
+  onRemoveExpansionPlatform,
+  onOpenDistributionTab,
   onOpenClipInStudio,
   onFetchTrends,
   onToggleTrendPin,
@@ -206,7 +279,7 @@ export function AiDirectorDeck({
   onTestLocalLlm,
   onFetchWorkerPack,
 }: AiDirectorDeckProps) {
-  const [subTab, setSubTab] = useState<"mission" | "monetization" | "agent" | "compute" | "voice">(initialSubTab);
+  const [subTab, setSubTab] = useState<"mission" | "monetization" | "expansion" | "agent" | "compute" | "voice">(initialSubTab);
 
   const defaultPolicy: AiDirectorPolicy = config.aiDirector || {
     mode: "supervised",
@@ -335,6 +408,7 @@ export function AiDirectorDeck({
             [
               { id: "mission", label: "Autonomous Mission Map & News Radar" },
               { id: "monetization", label: "Monetization & Self-Learning" },
+              { id: "expansion", label: "Platform Expansion" },
               { id: "agent", label: "Studio Ops Agent & Trends" },
               { id: "compute", label: "LM Studio (Gemma 4 2B) & Windows → VPS" },
               ...(uiMode === "advanced" ? ([{ id: "voice", label: "Brand Voice & Competitor Lab" }] as const) : []),
@@ -393,17 +467,40 @@ export function AiDirectorDeck({
             knowledgeAcquisition={knowledgeAcquisition}
             isOptimizingMonetization={isOptimizingMonetization}
             isProjectingRevenue={isProjectingRevenue}
+            isAnalyzingFunnel={isAnalyzingFunnel}
+            isApplyingFunnelWinner={isApplyingFunnelWinner}
             isRunningSelfLearn={isRunningSelfLearn}
             isCrawlingKnowledge={isCrawlingKnowledge}
             adoptingDiscoveryId={adoptingDiscoveryId}
             onUpdateMonetizationPlan={onUpdateMonetizationPlan}
             onOptimizeMonetization={onOptimizeMonetization}
             onProjectRevenue={onProjectRevenue}
+            onAddFunnelVariant={onAddFunnelVariant}
+            onAnalyzeFunnel={onAnalyzeFunnel}
+            onApplyFunnelWinner={onApplyFunnelWinner}
             onUpdateSelfLearnConfig={onUpdateSelfLearnConfig}
             onRunSelfLearningCycle={onRunSelfLearningCycle}
             onAdoptDiscovery={onAdoptDiscovery}
             onRunKnowledgeCrawl={onRunKnowledgeCrawl}
             onOpenIngestOpportunities={onOpenIngestOpportunities}
+          />
+        </div>
+      )}
+
+      {/* SUB-TAB 2: PLATFORM EXPANSION ENGINE */}
+      {subTab === "expansion" && onUpdateExpansionConfig && onResearchExpansion && onApplyExpansionPattern && onRemoveExpansionPlatform && onOpenDistributionTab && (
+        <div className="p-5 sm:p-6 max-w-[1440px] w-full mx-auto">
+          <PlatformExpansionHub
+            config={config}
+            platformExpansion={platformExpansion}
+            isResearchingExpansion={isResearchingExpansion}
+            applyingPatternId={applyingPatternId}
+            removingPlatform={removingPlatform}
+            onUpdateExpansionConfig={onUpdateExpansionConfig}
+            onResearchExpansion={onResearchExpansion}
+            onApplyExpansionPattern={onApplyExpansionPattern}
+            onRemoveExpansionPlatform={onRemoveExpansionPlatform}
+            onOpenDistributionTab={onOpenDistributionTab}
           />
         </div>
       )}
@@ -631,9 +728,18 @@ export function AiDirectorDeck({
         </>
       )}
 
-      {/* SUB-TAB 2: HYBRID LM STUDIO (GEMMA 4 2B) & WINDOWS PC -> LINUX VPS SCALING MANAGER */}
+      {/* SUB-TAB 2: COMPUTE TIERS, CREDITS, GITHUB/CLOUDFLARE/SUPABASE & LOCAL WINDOWS PC */}
       {subTab === "compute" && (
-        <div className="flex-1 grid grid-cols-1 xl:grid-cols-12">
+        <div className="flex-1 flex flex-col">
+          {onUpdateComputeRouting && (
+            <div className="p-5 sm:p-6 max-w-[1440px] w-full mx-auto border-b border-[#D9DEE7] dark:border-[#222631]">
+              <ComputeHostingHub
+                computeRouting={computeRouting}
+                onUpdateComputeRouting={onUpdateComputeRouting}
+              />
+            </div>
+          )}
+          <div className="flex-1 grid grid-cols-1 xl:grid-cols-12">
           {/* Left (6 cols): Local LM Studio Hybrid Router */}
           <section className="xl:col-span-6 p-5 border-b xl:border-b-0 xl:border-r border-[#D9DEE7] dark:border-[#222631] space-y-5 text-xs">
             <div className="flex items-start justify-between gap-3">
@@ -920,6 +1026,7 @@ export function AiDirectorDeck({
               </div>
             )}
           </section>
+          </div>
         </div>
       )}
 

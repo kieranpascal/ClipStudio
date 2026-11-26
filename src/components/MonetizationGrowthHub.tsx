@@ -32,6 +32,7 @@ import {
 } from "recharts";
 import type {
   ContentNiche,
+  CtaPlacementType,
   KnowledgeAcquisitionState,
   LearningDiscoveryType,
   MonetizationPlan,
@@ -41,6 +42,7 @@ import type {
   SponsorDeal,
 } from "../types";
 import { formatCompactNumber } from "../utils/ffmpeg";
+import { AbFunnelTestPanel } from "./AbFunnelTestPanel";
 
 interface MonetizationGrowthHubProps {
   monetizationPlan?: MonetizationPlan;
@@ -48,12 +50,29 @@ interface MonetizationGrowthHubProps {
   knowledgeAcquisition?: KnowledgeAcquisitionState;
   isOptimizingMonetization: boolean;
   isProjectingRevenue?: boolean;
+  isAnalyzingFunnel?: boolean;
+  isApplyingFunnelWinner?: boolean;
   isRunningSelfLearn: boolean;
   isCrawlingKnowledge?: boolean;
   adoptingDiscoveryId: string | null;
   onUpdateMonetizationPlan: (patch: Partial<MonetizationPlan>) => Promise<void>;
   onOptimizeMonetization: () => Promise<void>;
   onProjectRevenue?: (payload?: { horizonMonths?: number; dailyPostsTarget?: number }) => Promise<void>;
+  onAddFunnelVariant?: (payload: {
+    label: string;
+    placement: CtaPlacementType;
+    triggerSecond: number;
+    ctaCopy: string;
+    sponsorBrand: string;
+    niche: ContentNiche;
+    impressions: number;
+    ctrPct: number;
+    conversionRatePct: number;
+    retentionImpactPct: number;
+    avgDealValueUsd: number;
+  }) => Promise<void>;
+  onAnalyzeFunnel?: (focusSponsor?: string) => Promise<void>;
+  onApplyFunnelWinner?: () => Promise<void>;
   onUpdateSelfLearnConfig: (patch: {
     enabled?: boolean;
     cadence?: SelfLearningCadence;
@@ -87,12 +106,17 @@ export function MonetizationGrowthHub({
   knowledgeAcquisition,
   isOptimizingMonetization,
   isProjectingRevenue = false,
+  isAnalyzingFunnel = false,
+  isApplyingFunnelWinner = false,
   isRunningSelfLearn,
   isCrawlingKnowledge = false,
   adoptingDiscoveryId,
   onUpdateMonetizationPlan,
   onOptimizeMonetization,
   onProjectRevenue,
+  onAddFunnelVariant,
+  onAnalyzeFunnel,
+  onApplyFunnelWinner,
   onUpdateSelfLearnConfig,
   onRunSelfLearningCycle,
   onAdoptDiscovery,
@@ -433,6 +457,18 @@ export function MonetizationGrowthHub({
           </>
         )}
       </section>
+
+      {/* SECTION 0.5: A/B FUNNEL TEST (CTA PLACEMENTS VS SPONSORSHIP CONVERSION RATES) */}
+      {onAddFunnelVariant && onAnalyzeFunnel && onApplyFunnelWinner && (
+        <AbFunnelTestPanel
+          funnelTest={monetizationPlan?.funnelTest}
+          isAnalyzingFunnel={isAnalyzingFunnel}
+          isApplyingFunnelWinner={isApplyingFunnelWinner}
+          onAddFunnelVariant={onAddFunnelVariant}
+          onAnalyzeFunnel={onAnalyzeFunnel}
+          onApplyFunnelWinner={onApplyFunnelWinner}
+        />
+      )}
 
       {/* RECURRING KNOWLEDGE ACQUISITION BRIDGE BANNER */}
       {knowledgeAcquisition && (

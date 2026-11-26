@@ -3,6 +3,14 @@
   "scheduleCron": "0 */2 * * *",
   "targetGames": [
     {
+      "name": "Finance High-ROI Clips",
+      "twitchGameId": "niche-finance",
+      "minViews": 1500,
+      "maxClipAgeHours": 24,
+      "enabled": true,
+      "niche": "finance"
+    },
+    {
       "name": "Grand Theft Auto VI",
       "twitchGameId": "32982",
       "minViews": 1500,
@@ -52,7 +60,7 @@
   "brandKit": {
     "watermarkHandle": "@clipforge.gg",
     "watermarkOpacity": 0.65,
-    "endCardCta": "Follow for daily viral cuts"
+    "endCardCta": "Scan for 30% off"
   },
   "layoutDefaults": {
     "aspectRatio": "9:16",
@@ -72,9 +80,13 @@
       "YouTube Shorts",
       "X Video",
       "Snapchat Spotlight",
-      "Facebook Reels"
+      "Facebook Reels",
+      "LinkedIn Video",
+      "Reddit Native Video",
+      "Pinterest Idea Pins",
+      "Threads Video"
     ],
-    "maxPostsPerDay": 14,
+    "maxPostsPerDay": 12,
     "minSpacingMinutes": 45,
     "staggerJitterMinutes": 18,
     "targetDailyRevenueUsd": 150,
@@ -91,7 +103,8 @@
         "TikTok",
         "Instagram Reels",
         "YouTube Shorts",
-        "X Video"
+        "X Video",
+        "Reddit Native Video"
       ],
       "stage": "monetized",
       "dailyPostCap": 6,
@@ -108,7 +121,9 @@
         "YouTube Shorts",
         "TikTok",
         "X Video",
-        "Instagram Reels"
+        "Instagram Reels",
+        "LinkedIn Video",
+        "Pinterest Idea Pins"
       ],
       "stage": "monetized",
       "dailyPostCap": 4,
@@ -125,7 +140,8 @@
         "TikTok",
         "Instagram Reels",
         "YouTube Shorts",
-        "Facebook Reels"
+        "Facebook Reels",
+        "Threads Video"
       ],
       "stage": "scaling",
       "dailyPostCap": 4,
@@ -184,7 +200,7 @@
   "aiDirector": {
     "mode": "supervised",
     "brandVoice": "hype-arcade",
-    "customVoicePrompt": "Write sharp, data-backed hooks under 34 characters. Anchor every opening line in the exact stunt, surprising stat, or contrarian claim happening on screen. | SENTIMENT FEEDBACK (gaming): Prioritize split-stack + 2.8s peak hook prepend with kinetic-highlight captions; cap meme cutaways to 1 intentional beat per 25s clip and keep Twitch chat overlays masked.",
+    "customVoicePrompt": "PRIORITY FOCUS (Finance Niche Surge, +125.3% ROI): Shift AI Director focus toward Finance using hud-zoom + broadcast-lower layout and mid-roll sponsor CTA.",
     "autoAuditOnIngest": true,
     "autoGenerateHooks": true,
     "autoLocalizeLocales": [
@@ -252,6 +268,66 @@
     "next-clip": "]"
   },
   "syndicationRules": [
+    {
+      "id": "syn_exp_threads_video",
+      "name": "Expansion · Threads Video (9:16 · 15–40s)",
+      "enabled": true,
+      "triggerNiche": "podcasts",
+      "minQaStatus": "approved",
+      "stripWatermark": true,
+      "targets": [
+        "Threads Video"
+      ],
+      "retryOnApiFail": true,
+      "fallbackQueue": true,
+      "lastCheckedAt": "2026-11-26T02:26:30.692Z",
+      "lastHealthSummary": "Auto-configured from Platform Expansion (Conversational Reply-Bait Vertical Cuts 15-40s)."
+    },
+    {
+      "id": "syn_exp_pinterest_idea_pins",
+      "name": "Expansion · Pinterest Idea Pins (9:16 · 15–35s)",
+      "enabled": true,
+      "triggerNiche": "tech-ai",
+      "minQaStatus": "approved",
+      "stripWatermark": true,
+      "targets": [
+        "Pinterest Idea Pins"
+      ],
+      "retryOnApiFail": true,
+      "fallbackQueue": true,
+      "lastCheckedAt": "2026-11-26T02:26:30.692Z",
+      "lastHealthSummary": "Auto-configured from Platform Expansion (Evergreen Search-Indexed Vertical Pin 15-35s)."
+    },
+    {
+      "id": "syn_exp_reddit_native_video",
+      "name": "Expansion · Reddit Native Video (4:5 · 20–45s)",
+      "enabled": true,
+      "triggerNiche": "gaming",
+      "minQaStatus": "approved",
+      "stripWatermark": true,
+      "targets": [
+        "Reddit Native Video"
+      ],
+      "retryOnApiFail": true,
+      "fallbackQueue": true,
+      "lastCheckedAt": "2026-11-26T02:26:30.692Z",
+      "lastHealthSummary": "Auto-configured from Platform Expansion (Native Zero-Branding V.redd.it Clip 20-45s)."
+    },
+    {
+      "id": "syn_exp_linkedin_video",
+      "name": "Expansion · LinkedIn Video (9:16 · 60–150s)",
+      "enabled": true,
+      "triggerNiche": "tech-ai",
+      "minQaStatus": "approved",
+      "stripWatermark": true,
+      "targets": [
+        "LinkedIn Video"
+      ],
+      "retryOnApiFail": true,
+      "fallbackQueue": true,
+      "lastCheckedAt": "2026-11-26T02:26:30.692Z",
+      "lastHealthSummary": "Auto-configured from Platform Expansion (Vertical Long-Form Authority Breakdown 60-150s)."
+    },
     {
       "id": "syn_rule_gaming",
       "name": "Gaming Viral Watermark-Free Crosspost",

@@ -1,11 +1,24 @@
 import "dotenv/config";
+import { createServer as createHttpServer } from "node:http";
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import {
+  attachLiveVoiceWebSocket,
+  buildSeedComputeRouting,
+  buildSeedFunnelTest,
+  buildSeedOpportunityDiscovery,
+  buildSeedRevenueAlerts,
+  registerSuiteRoutes,
+} from "./src/server/suiteRoutes.ts";
 import type {
+  AbTestAnalysisSnapshot,
+  AbTestRecommendedDefaults,
+  AbTestVariantMetrics,
   AgentChatMessage,
+  AiDirectorPolicy,
   AssetDiscoverySnapshot,
   AutonomousMission,
   BrollCue,
@@ -47,6 +60,9 @@ import type {
   PipelineConfig,
   PipelineRun,
   PlatformCpmTrend,
+  PlatformExpansionHistoryEntry,
+  PlatformExpansionPattern,
+  PlatformExpansionState,
   RepoFileEntry,
   ResearchOpportunity,
   RevenueProjectionSnapshot,
@@ -1047,6 +1063,7 @@ function buildSeedWorkspace(): WorkspaceState {
     directorHistory: [],
     agentMessages: buildSeedAgentMessages(),
     researchOpportunities: buildSeedResearchOpportunities(),
+    opportunityDiscovery: buildSeedOpportunityDiscovery(),
     industryNews: buildSeedIndustryNews(),
     viralSentiment: buildSeedViralSentiment(),
     assetDiscovery: buildSeedAssetDiscovery(),
@@ -1054,6 +1071,10 @@ function buildSeedWorkspace(): WorkspaceState {
     monetizationPlan: buildSeedMonetizationPlan(),
     selfLearning: buildSeedSelfLearning(),
     knowledgeAcquisition: buildSeedKnowledgeAcquisition(),
+    platformExpansion: buildSeedPlatformExpansion(),
+    abTestAnalysis: buildSeedAbTestAnalysis(),
+    revenueAlerts: buildSeedRevenueAlerts(),
+    computeRouting: buildSeedComputeRouting(),
     missionHistory: [],
     integrations: getIntegrationStatus(),
   };
@@ -1589,6 +1610,7 @@ function buildSeedMonetizationPlan(): MonetizationPlan {
       "Want Part 2 comparing $0 local AI vs $200/mo cloud? Subscribe before tonight's drop.",
     ],
     revenueProjection: buildSeedRevenueProjection(),
+    funnelTest: buildSeedFunnelTest(),
   };
 }
 
@@ -1720,6 +1742,214 @@ function buildSeedKnowledgeAcquisition(): KnowledgeAcquisitionState {
   };
 }
 
+function buildSeedPlatformExpansion(): PlatformExpansionState {
+  const nowIso = new Date().toISOString();
+  const discoveredIso = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
+  return {
+    autoSyncToDistribution: true,
+    autoTargetMinScore: 84,
+    focusNiche: "all",
+    lastResearchedAt: discoveredIso,
+    totalResearchRuns: 2,
+    executiveBrief:
+      "LinkedIn's dedicated vertical video feed now favors 60–150s executive teardown cuts with clean captions and zero TikTok watermarks, while Reddit native v.redd.it uploads (20–45s, 4:5 or 1:1) generate 3x higher upvote velocity when stripped of CTA end-cards and posted to niche subreddits.",
+    sources: [
+      { title: "LinkedIn Video Feed Creator Benchmark", uri: "https://www.linkedin.com/business/marketing/blog" },
+      { title: "Reddit Native Video Community Guidelines", uri: "https://www.redditinc.com/" },
+      { title: "Pinterest Creative Best Practices — Video Pins", uri: "https://business.pinterest.com/creative-best-practices/" },
+    ],
+    appliedHistory: [],
+    patterns: [
+      {
+        id: "exp_linkedin_vertical_01",
+        platform: "LinkedIn Video",
+        formatName: "Vertical Long-Form Authority Teardown (60–150s)",
+        aspectRatio: "9:16",
+        idealDurationRange: "60–150s",
+        viralPatternTitle: "Zero-Fluff B2B & Creator Economy Breakdown with First-Frame Thesis",
+        algorithmSignal:
+          "3-second scroll stop + dwell time past 45s + save-to-bookmark ratio from decision-makers and founders.",
+        hookStructure:
+          "Open with a sharp numerical claim in the top third ('Why 61s+ vertical clips just beat Shorts RPM by 2.4x') and cut straight into a 3-point screen breakdown.",
+        captionPackaging:
+          "Clean lower-third editorial captions (no flashing arcade pop), 3-line scannable post text with a discussion question and zero outbound links in the main body.",
+        targetCommunitiesOrTags: ["#CreatorEconomy", "#AIVideo", "#MediaTech", "#GrowthStrategy"],
+        recommendedNiche: "tech-ai",
+        viralPotentialScore: 91,
+        competitionLevel: "low",
+        estRpmOrValueLift: "$9–$16 B2B sponsor eq.",
+        stripWatermarkRequired: true,
+        recommendedDailyCap: 2,
+        sourceUrl: "https://www.linkedin.com/business/marketing/blog",
+        discoveredAt: discoveredIso,
+        adoptedToDistribution: false,
+      },
+      {
+        id: "exp_reddit_native_02",
+        platform: "Reddit Native Video",
+        formatName: "Reddit Native Zero-Branding Highlight (20–45s)",
+        aspectRatio: "4:5",
+        idealDurationRange: "20–45s",
+        viralPatternTitle: "Raw Context-First Native Clip (v.redd.it) Built for Subreddit Discussion",
+        algorithmSignal:
+          "Upvote-to-view velocity in the first 15 minutes + comment thread depth; external links and TikTok watermarks are heavily downvoted.",
+        hookStructure:
+          "Drop the viewer directly into the exact mechanic, glitch, or reveal at 0.0s with a factual subreddit title — zero 'Wait till the end!' clickbait.",
+        captionPackaging:
+          "Subtle embedded subtitles for muted mobile autoplay, strip all channel watermarks and 'Follow for Part 2' end cards.",
+        targetCommunitiesOrTags: ["r/GamingLeaksAndRumours", "r/LocalLLaMA", "r/LivestreamFail", "r/Games"],
+        recommendedNiche: "gaming",
+        viralPotentialScore: 88,
+        competitionLevel: "low",
+        estRpmOrValueLift: "3.4x organic referral spike",
+        stripWatermarkRequired: true,
+        recommendedDailyCap: 2,
+        sourceUrl: "https://www.redditinc.com/",
+        discoveredAt: discoveredIso,
+        adoptedToDistribution: false,
+      },
+      {
+        id: "exp_pinterest_idea_03",
+        platform: "Pinterest Idea Pins",
+        formatName: "Evergreen Loopable Vertical Tip Pin (15–35s)",
+        aspectRatio: "9:16",
+        idealDurationRange: "15–35s",
+        viralPatternTitle: "Search-Indexed Visual Step-by-Step Clip with High Save Longevity",
+        algorithmSignal:
+          "Long-tail keyword search indexing + outbound pin saves that compound traffic for 6–12 months after upload.",
+        hookStructure:
+          "Persistent top headline banner stating the exact searchable outcome ('3 Local AI Video Tools Free on Windows').",
+        captionPackaging:
+          "Keyword-dense title + 5 evergreen topic tags + subtle loop transition at the final second to drive rewatches.",
+        targetCommunitiesOrTags: ["ai tools", "video editing tips", "gaming setups", "creator workflow"],
+        recommendedNiche: "tech-ai",
+        viralPotentialScore: 82,
+        competitionLevel: "low",
+        estRpmOrValueLift: "$4.20 affiliate click eq.",
+        stripWatermarkRequired: true,
+        recommendedDailyCap: 3,
+        sourceUrl: "https://business.pinterest.com/creative-best-practices/",
+        discoveredAt: discoveredIso,
+        adoptedToDistribution: false,
+      },
+      {
+        id: "exp_threads_video_04",
+        platform: "Threads Video",
+        formatName: "Conversational Hot-Take & Reply-Bait Cut (15–40s)",
+        aspectRatio: "9:16",
+        idealDurationRange: "15–40s",
+        viralPatternTitle: "Polarizing 1-Question Clip Paired with a 2-Part Thread Breakdown",
+        algorithmSignal:
+          "Reply chains and quote-posts within the first 30 minutes trigger Meta cross-feed injection inside Instagram.",
+        hookStructure:
+          "Start mid-sentence on a contrarian take from a podcast or livestream clip, ending abruptly on an open debate prompt.",
+        captionPackaging:
+          "Short 1-sentence opinion text above the video + follow-up reply with timestamped context and credit.",
+        targetCommunitiesOrTags: ["Gaming Threads", "Tech Threads", "Creator Economy"],
+        recommendedNiche: "podcasts",
+        viralPotentialScore: 79,
+        competitionLevel: "medium",
+        estRpmOrValueLift: "2.1x Meta cross-surface reach",
+        stripWatermarkRequired: true,
+        recommendedDailyCap: 3,
+        discoveredAt: nowIso,
+        adoptedToDistribution: false,
+      },
+    ],
+  };
+}
+
+function buildSeedAbTestAnalysis(): AbTestAnalysisSnapshot {
+  const analyzedAt = new Date(Date.now() - 90 * 60 * 1000).toISOString();
+  return {
+    id: "ab_seed_01",
+    analyzedAt,
+    modelUsed: "gemini-4-hydrogen",
+    focusNiche: "all",
+    winnerVariantId: "var_a",
+    winnerLabel: "Variant A · 2.5s Peak Prepend + Split-Stack + Kinetic Highlight",
+    confidencePct: 93,
+    projectedViewsLiftPct: 38,
+    projectedRetentionLiftPct: 11,
+    executiveVerdict:
+      "Variant A (2.5s Peak Prepend + Split-Stack + Kinetic Highlight captions) outperformed standard fullscreen and minimal-lower cuts by +38% average views and +11% average watch hold across your published fleet.",
+    keyFindings: [
+      "Prepending a 2.5s peak-action hook stops the 0–3s scroll drop and adds +11% watch retention over cold intros.",
+      "Split-Stack (38% facecam) paired with Kinetic Highlight captions generates 2.1× higher share velocity than Fullscreen PiP.",
+      "Numbers-first curiosity banners under 32 characters achieve the highest completion rates on YouTube Shorts and TikTok.",
+    ],
+    variants: [
+      {
+        variantId: "var_a",
+        label: "Variant A · Peak Hook Prepend + Split-Stack",
+        hookStyle: "Curiosity-Gap Numerical Banner + 2.5s Peak Prepend",
+        hookBannerSample: "WHY 94% MISS THIS SECRET",
+        editingTemplate: "split-stack",
+        captionStyle: "kinetic-highlight",
+        hookDurationSeconds: 2.5,
+        sampleClips: 4,
+        avgViews: 148200,
+        avgRetentionPct: 86,
+        avgShareRatePct: 4.8,
+        estRpmUsd: 3.15,
+        isWinner: true,
+      },
+      {
+        variantId: "var_b",
+        label: "Variant B · Cold Open + Blurred Backdrop",
+        hookStyle: "Direct Action Cold Open + Broadcast Lower-Third",
+        hookBannerSample: "WATCH THIS FRAME BY FRAME",
+        editingTemplate: "blurred-backdrop",
+        captionStyle: "broadcast-lower",
+        hookDurationSeconds: 3.0,
+        sampleClips: 3,
+        avgViews: 109400,
+        avgRetentionPct: 78,
+        avgShareRatePct: 3.1,
+        estRpmUsd: 2.42,
+      },
+      {
+        variantId: "var_c",
+        label: "Variant C · Reaction Zoom + Arcade Pop",
+        hookStyle: "High-Energy Shock Claim + Reaction Focus",
+        hookBannerSample: "NO WAY THIS ACTUALLY WORKED",
+        editingTemplate: "reaction-focus",
+        captionStyle: "arcade-pop",
+        hookDurationSeconds: 2.0,
+        sampleClips: 3,
+        avgViews: 121600,
+        avgRetentionPct: 75,
+        avgShareRatePct: 3.6,
+        estRpmUsd: 2.18,
+      },
+      {
+        variantId: "var_d",
+        label: "Variant D · Fullscreen PiP + Bold Clean",
+        hookStyle: "Straight News Headline + Minimal Overlay",
+        hookBannerSample: "NEW UPDATE JUST DROPPED",
+        editingTemplate: "fullscreen-pip",
+        captionStyle: "bold-clean",
+        hookDurationSeconds: 3.5,
+        sampleClips: 2,
+        avgViews: 84500,
+        avgRetentionPct: 71,
+        avgShareRatePct: 2.2,
+        estRpmUsd: 1.85,
+      },
+    ],
+    recommendedDefaults: {
+      template: "split-stack",
+      captionStyle: "kinetic-highlight",
+      prependPeakHook: true,
+      hookDurationSeconds: 2.5,
+      facecamHeightPercent: 38,
+      brandVoice: "hype-arcade",
+      customVoicePrompt:
+        "Lead with a 2.5s peak moment and a crisp numerical curiosity-gap banner under 32 characters, paired with kinetic highlighted captions.",
+    },
+  };
+}
+
 function computeNextSelfLearningIso(cadence: SelfLearningCadence): string | undefined {
   const now = Date.now();
   if (cadence === "manual") return undefined;
@@ -1844,6 +2074,9 @@ function readWorkspace(): WorkspaceState {
   if (!Array.isArray(parsed.researchOpportunities)) {
     parsed.researchOpportunities = buildSeedResearchOpportunities();
   }
+  if (!parsed.opportunityDiscovery) {
+    parsed.opportunityDiscovery = buildSeedOpportunityDiscovery();
+  }
   if (!parsed.industryNews) {
     parsed.industryNews = buildSeedIndustryNews();
   }
@@ -1858,14 +2091,31 @@ function readWorkspace(): WorkspaceState {
   }
   if (!parsed.monetizationPlan) {
     parsed.monetizationPlan = buildSeedMonetizationPlan();
-  } else if (!parsed.monetizationPlan.revenueProjection) {
-    parsed.monetizationPlan.revenueProjection = buildSeedRevenueProjection();
+  } else {
+    if (!parsed.monetizationPlan.revenueProjection) {
+      parsed.monetizationPlan.revenueProjection = buildSeedRevenueProjection();
+    }
+    if (!parsed.monetizationPlan.funnelTest) {
+      parsed.monetizationPlan.funnelTest = buildSeedFunnelTest();
+    }
   }
   if (!parsed.selfLearning) {
     parsed.selfLearning = buildSeedSelfLearning();
   }
   if (!parsed.knowledgeAcquisition) {
     parsed.knowledgeAcquisition = buildSeedKnowledgeAcquisition();
+  }
+  if (!parsed.platformExpansion) {
+    parsed.platformExpansion = buildSeedPlatformExpansion();
+  }
+  if (!parsed.abTestAnalysis) {
+    parsed.abTestAnalysis = buildSeedAbTestAnalysis();
+  }
+  if (!Array.isArray(parsed.revenueAlerts)) {
+    parsed.revenueAlerts = buildSeedRevenueAlerts();
+  }
+  if (!parsed.computeRouting) {
+    parsed.computeRouting = buildSeedComputeRouting();
   }
   if (!Array.isArray(parsed.missionHistory)) {
     parsed.missionHistory = [];
@@ -4132,7 +4382,7 @@ Include 6 to 8 items covering ALL 5 categories ("news", "streams", "videos", "so
 
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: "6mb" }));
+  app.use(express.json({ limit: "25mb" }));
   app.use("/api/voiceovers", express.static(VOICEOVER_DIR));
 
   // 1. Workspace state
@@ -8478,6 +8728,653 @@ Include ALL 6 platforms in platformCpmTrends and EXACTLY ${safeHorizon} months (
     }
   });
 
+  // 42. Platform Expansion Sub-Tab — Research Secondary Platforms & Auto-Update Distribution Config
+  const SECONDARY_PLATFORMS: SocialPlatform[] = [
+    "LinkedIn Video",
+    "Reddit Native Video",
+    "Pinterest Idea Pins",
+    "Threads Video",
+    "Bluesky Video",
+    "Substack Video",
+  ];
+
+  function applyExpansionPatternToDistribution(
+    state: WorkspaceState,
+    pattern: PlatformExpansionPattern,
+    mode: "auto-sync" | "manual"
+  ): string {
+    const actions: string[] = [];
+
+    // 1. Add secondary platform to workspace publishing targets
+    if (!state.config.publishing.platforms.includes(pattern.platform)) {
+      state.config.publishing.platforms = [...state.config.publishing.platforms, pattern.platform];
+      actions.push(`Added ${pattern.platform} to publishing targets`);
+    }
+
+    // 2. Upsert a dedicated auto-syndication rule targeting this channel & format
+    const rules = Array.isArray(state.config.syndicationRules) ? [...state.config.syndicationRules] : [];
+    const ruleId = `syn_exp_${pattern.platform.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+    const existingRuleIdx = rules.findIndex((r) => r.id === ruleId || r.targets.includes(pattern.platform));
+    const ruleObj: SyndicationRule = {
+      id: existingRuleIdx >= 0 ? rules[existingRuleIdx].id : ruleId,
+      name: `Expansion · ${pattern.platform} (${pattern.aspectRatio} · ${pattern.idealDurationRange})`,
+      enabled: true,
+      triggerNiche: pattern.recommendedNiche,
+      minQaStatus: "approved",
+      stripWatermark: pattern.stripWatermarkRequired,
+      targets: [pattern.platform],
+      retryOnApiFail: true,
+      fallbackQueue: true,
+      lastCheckedAt: new Date().toISOString(),
+      lastHealthSummary: `Auto-configured from Platform Expansion (${pattern.formatName}).`,
+    };
+    if (existingRuleIdx >= 0) {
+      const mergedTargets = Array.from(new Set([...rules[existingRuleIdx].targets, pattern.platform]));
+      rules[existingRuleIdx] = {
+        ...rules[existingRuleIdx],
+        enabled: true,
+        stripWatermark: pattern.stripWatermarkRequired || rules[existingRuleIdx].stripWatermark,
+        targets: mergedTargets,
+        lastCheckedAt: new Date().toISOString(),
+        lastHealthSummary: `Synced ${pattern.platform} (${pattern.aspectRatio}, ${pattern.idealDurationRange}).`,
+      };
+      actions.push(`Updated syndication rule "${rules[existingRuleIdx].name}"`);
+    } else {
+      rules.unshift(ruleObj);
+      actions.push(`Created auto-syndication rule for ${pattern.platform}`);
+    }
+    state.config.syndicationRules = rules;
+
+    // 3. Ensure at least one Channel Fleet account targets this secondary platform
+    const hasChannel = state.config.channelFleet.some((ch) => ch.platforms.includes(pattern.platform));
+    if (!hasChannel) {
+      const matchingNicheChannel =
+        pattern.recommendedNiche !== "all"
+          ? state.config.channelFleet.find((ch) => ch.niche === pattern.recommendedNiche)
+          : state.config.channelFleet[0];
+
+      if (matchingNicheChannel) {
+        matchingNicheChannel.platforms = Array.from(new Set([...matchingNicheChannel.platforms, pattern.platform]));
+        actions.push(`Attached ${pattern.platform} to fleet channel ${matchingNicheChannel.name}`);
+      } else {
+        const slug = pattern.platform.toLowerCase().replace(/[^a-z0-9]+/g, "");
+        state.config.channelFleet.push({
+          id: `ch_exp_${slug}_${Date.now().toString(36).slice(-4)}`,
+          name: `ClipForge ${pattern.platform}`,
+          handle: `@clipforge_${slug}`,
+          locale: "en",
+          niche: pattern.recommendedNiche === "all" ? "tech-ai" : pattern.recommendedNiche,
+          platforms: [pattern.platform],
+          stage: "warmup",
+          dailyPostCap: Math.max(1, Math.min(6, pattern.recommendedDailyCap || 2)),
+          staggerJitterMin: 24,
+          assumedRpmUsd: pattern.platform === "LinkedIn Video" ? 6.5 : 2.2,
+        });
+        actions.push(`Provisioned fleet channel for ${pattern.platform}`);
+      }
+    }
+
+    // 4. Mark pattern adopted & record history
+    const appliedAt = new Date().toISOString();
+    pattern.adoptedToDistribution = true;
+    pattern.adoptedAt = appliedAt;
+
+    const summary = actions.length > 0 ? actions.join(" · ") : `${pattern.platform} already targeted in Distribution Config.`;
+    const pe = state.platformExpansion || buildSeedPlatformExpansion();
+    const entry: PlatformExpansionHistoryEntry = {
+      id: `exphist_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      platform: pattern.platform,
+      formatName: pattern.formatName,
+      appliedAt,
+      mode,
+      summary,
+    };
+    pe.appliedHistory = [entry, ...(pe.appliedHistory || [])].slice(0, 20);
+    state.platformExpansion = pe;
+    return summary;
+  }
+
+  function removeExpansionPlatformFromDistribution(state: WorkspaceState, platform: SocialPlatform): string {
+    state.config.publishing.platforms = state.config.publishing.platforms.filter((p) => p !== platform);
+    if (Array.isArray(state.config.syndicationRules)) {
+      state.config.syndicationRules = state.config.syndicationRules
+        .map((r) => ({ ...r, targets: r.targets.filter((t) => t !== platform) }))
+        .filter((r) => r.targets.length > 0);
+    }
+    state.config.channelFleet = state.config.channelFleet.map((ch) => ({
+      ...ch,
+      platforms: ch.platforms.filter((p) => p !== platform),
+    }));
+    const pe = state.platformExpansion || buildSeedPlatformExpansion();
+    pe.patterns = pe.patterns.map((p) =>
+      p.platform === platform ? { ...p, adoptedToDistribution: false, adoptedAt: undefined } : p
+    );
+    state.platformExpansion = pe;
+    return `Removed ${platform} from Distribution Config publishing targets, fleet, and syndication rules.`;
+  }
+
+  app.patch("/api/expansion/config", (req, res) => {
+    const { autoSyncToDistribution, autoTargetMinScore, focusNiche } = (req.body || {}) as {
+      autoSyncToDistribution?: boolean;
+      autoTargetMinScore?: number;
+      focusNiche?: ContentNiche | "all";
+    };
+    const state = readWorkspace();
+    const pe = state.platformExpansion || buildSeedPlatformExpansion();
+    if (typeof autoSyncToDistribution === "boolean") pe.autoSyncToDistribution = autoSyncToDistribution;
+    if (typeof autoTargetMinScore === "number") {
+      pe.autoTargetMinScore = Math.max(60, Math.min(98, Math.round(autoTargetMinScore)));
+    }
+    if (focusNiche) pe.focusNiche = focusNiche;
+    state.platformExpansion = pe;
+    saveWorkspace(state);
+    res.json({ platformExpansion: pe });
+  });
+
+  app.post("/api/ai/expansion/research", async (req, res) => {
+    const { focusNiche, customQuery = "", autoApplyNow } = (req.body || {}) as {
+      focusNiche?: ContentNiche | "all";
+      customQuery?: string;
+      autoApplyNow?: boolean;
+    };
+    const ai = getAiClient();
+    if (!ai) {
+      res.status(500).json({ error: "GEMINI_API_KEY is not configured. Add it in Settings > Secrets." });
+      return;
+    }
+    const state = readWorkspace();
+    const pe = state.platformExpansion || buildSeedPlatformExpansion();
+    const activeNiche = focusNiche || pe.focusNiche || "all";
+    pe.focusNiche = activeNiche;
+    const t0 = Date.now();
+
+    const currentTargets = state.config.publishing.platforms.join(", ");
+    const prompt = `You are a Multi-Platform Video Distribution Growth Researcher.
+Use Google Search to research CURRENT viral video growth patterns, native format rules, and organic algorithm loopholes on SECONDARY video platforms (beyond TikTok/Reels/Shorts):
+- "LinkedIn Video" (vertical long-form authority breakdowns, 60-150s, B2B/creator insights)
+- "Reddit Native Video" (v.redd.it zero-branding clips, 4:5 or 1:1, 20-45s, subreddit-specific rules)
+- "Pinterest Idea Pins" (evergreen search-indexed vertical video pins, 15-35s)
+- "Threads Video" (conversational debate/reply-bait vertical cuts, 15-40s)
+- "Bluesky Video" (native 60s high-engagement niche clips for tech/gaming feeds)
+- "Substack Video" (vertical newsletter companion commentary cuts)
+
+Studio Context:
+- Focus Niche: ${activeNiche}
+- Custom Research Angle: ${customQuery.trim() || "Vertical long-form for LinkedIn, Reddit-specific native video formats, and under-saturated secondary video channels"}
+- Currently Active Publishing Targets: ${currentTargets}
+- Target Games / Topics: ${state.config.targetGames.filter((g) => g.enabled).map((g) => g.name).join(", ") || "Gaming, AI & Tech, Podcasts"}
+
+Return ONLY a valid JSON object (no markdown fences) with this exact shape:
+{
+  "executiveBrief": "2-3 concrete sentences summarizing the biggest secondary-platform organic growth openings right now.",
+  "patterns": [
+    {
+      "platform": "LinkedIn Video" | "Reddit Native Video" | "Pinterest Idea Pins" | "Threads Video" | "Bluesky Video" | "Substack Video",
+      "formatName": "Concise format name with duration (e.g., Vertical Long-Form Authority Breakdown 60-150s)",
+      "aspectRatio": "9:16" | "4:5" | "1:1" | "16:9",
+      "idealDurationRange": "e.g. 60–150s",
+      "viralPatternTitle": "Specific viral pattern title",
+      "algorithmSignal": "What exact ranking signal drives organic distribution on this platform",
+      "hookStructure": "Concrete 0-3s hook execution rule for this format",
+      "captionPackaging": "Exact caption/watermark/text packaging rule",
+      "targetCommunitiesOrTags": ["tag1", "tag2", "tag3"],
+      "recommendedNiche": "gaming" | "podcasts" | "tech-ai" | "finance" | "sports-irl" | "faceless-doc" | "all",
+      "viralPotentialScore": 88,
+      "competitionLevel": "low" | "medium" | "high",
+      "estRpmOrValueLift": "Short measurable value/reach lift string",
+      "stripWatermarkRequired": true,
+      "recommendedDailyCap": 2,
+      "sourceUrl": "Optional real reference URL if found"
+    }
+  ]
+}
+Return 4 to 5 distinct secondary platforms, ALWAYS including at least "LinkedIn Video" and "Reddit Native Video".`;
+
+    try {
+      const { response, usedModel } = await generateGeminiWithSearchFallback(ai, prompt);
+      const parsed = extractJsonObject(response.text ?? "{}") as {
+        executiveBrief?: string;
+        patterns?: Array<Partial<PlatformExpansionPattern>>;
+      };
+      const { sources } = extractGroundingSources(response);
+      const validSecondary = new Set<SocialPlatform>(SECONDARY_PLATFORMS);
+      const validAspect = new Set(["9:16", "4:5", "1:1", "16:9"]);
+      const validNiches = new Set(["gaming", "podcasts", "tech-ai", "finance", "sports-irl", "faceless-doc", "all"]);
+      const nowIso = new Date().toISOString();
+
+      const rawPatterns = Array.isArray(parsed.patterns) ? parsed.patterns : [];
+      const newPatterns: PlatformExpansionPattern[] = rawPatterns.slice(0, 6).map((p, idx) => {
+        const platform = validSecondary.has(p.platform as SocialPlatform)
+          ? (p.platform as SocialPlatform)
+          : SECONDARY_PLATFORMS[idx % SECONDARY_PLATFORMS.length];
+        const aspectRatio = validAspect.has(String(p.aspectRatio))
+          ? (p.aspectRatio as PlatformExpansionPattern["aspectRatio"])
+          : "9:16";
+        const recommendedNiche = validNiches.has(String(p.recommendedNiche))
+          ? (p.recommendedNiche as ContentNiche | "all")
+          : activeNiche;
+        const alreadyTargeted = state.config.publishing.platforms.includes(platform);
+
+        return {
+          id: `exp_${Date.now()}_${idx}`,
+          platform,
+          formatName: String(p.formatName || `${platform} Native Format`).trim(),
+          aspectRatio,
+          idealDurationRange: String(p.idealDurationRange || "30–90s").trim(),
+          viralPatternTitle: String(p.viralPatternTitle || `High-Velocity ${platform} Pattern`).trim(),
+          algorithmSignal: String(
+            p.algorithmSignal || "Strong initial hold rate combined with saves and native comment threads."
+          ).trim(),
+          hookStructure: String(
+            p.hookStructure || "Lead immediately with a concrete thesis frame in the opening 2 seconds."
+          ).trim(),
+          captionPackaging: String(
+            p.captionPackaging || "Use clean native subtitles and strip cross-platform watermarks before upload."
+          ).trim(),
+          targetCommunitiesOrTags: Array.isArray(p.targetCommunitiesOrTags)
+            ? p.targetCommunitiesOrTags.map((t) => String(t).trim()).filter(Boolean).slice(0, 5)
+            : ["#CreatorEconomy", "#ShortFormVideo"],
+          recommendedNiche,
+          viralPotentialScore: Math.max(55, Math.min(99, Math.round(Number(p.viralPotentialScore) || 84))),
+          competitionLevel:
+            p.competitionLevel === "low" || p.competitionLevel === "medium" || p.competitionLevel === "high"
+              ? p.competitionLevel
+              : "low",
+          estRpmOrValueLift: String(p.estRpmOrValueLift || "2.5x organic discovery").trim(),
+          stripWatermarkRequired: p.stripWatermarkRequired !== false,
+          recommendedDailyCap: Math.max(1, Math.min(6, Math.round(Number(p.recommendedDailyCap) || 2))),
+          sourceUrl:
+            typeof p.sourceUrl === "string" && /^https?:\/\//i.test(p.sourceUrl.trim())
+              ? p.sourceUrl.trim()
+              : sources[idx]?.uri,
+          discoveredAt: nowIso,
+          adoptedToDistribution: alreadyTargeted,
+          adoptedAt: alreadyTargeted ? nowIso : undefined,
+        };
+      });
+
+      if (newPatterns.length === 0) {
+        throw new Error("Gemini returned no secondary platform patterns. Please retry.");
+      }
+
+      pe.patterns = newPatterns;
+      pe.executiveBrief = String(
+        parsed.executiveBrief ||
+          `Researched ${newPatterns.length} secondary platform viral formats for ${activeNiche === "all" ? "all niches" : activeNiche}.`
+      ).trim();
+      pe.lastResearchedAt = nowIso;
+      pe.totalResearchRuns = (pe.totalResearchRuns || 0) + 1;
+      if (sources.length > 0) pe.sources = sources;
+      state.platformExpansion = pe;
+
+      const shouldAutoSync = typeof autoApplyNow === "boolean" ? autoApplyNow : pe.autoSyncToDistribution;
+      const autoAppliedPlatforms: SocialPlatform[] = [];
+      if (shouldAutoSync) {
+        for (const pat of pe.patterns) {
+          if (pat.viralPotentialScore >= pe.autoTargetMinScore) {
+            applyExpansionPatternToDistribution(state, pat, "auto-sync");
+            autoAppliedPlatforms.push(pat.platform);
+          }
+        }
+      }
+
+      pushTelemetry(state, {
+        category: "gemini",
+        endpoint: "/api/ai/expansion/research",
+        latencyMs: Date.now() - t0,
+        success: true,
+        model: usedModel,
+      });
+      saveWorkspace(state);
+      res.json({
+        platformExpansion: state.platformExpansion,
+        config: state.config,
+        autoAppliedPlatforms,
+      });
+    } catch (err) {
+      pushTelemetry(state, {
+        category: "gemini",
+        endpoint: "/api/ai/expansion/research",
+        latencyMs: Date.now() - t0,
+        success: false,
+        model: "gemini-4-hydrogen",
+      });
+      saveWorkspace(state);
+      res.status(500).json({ error: formatApiError(err, "Platform Expansion research failed.") });
+    }
+  });
+
+  app.post("/api/expansion/apply", (req, res) => {
+    const { patternId, applyAllHighScore } = (req.body || {}) as {
+      patternId?: string;
+      applyAllHighScore?: boolean;
+    };
+    const state = readWorkspace();
+    const pe = state.platformExpansion || buildSeedPlatformExpansion();
+    state.platformExpansion = pe;
+
+    const summaries: string[] = [];
+    if (applyAllHighScore) {
+      const candidates = pe.patterns.filter((p) => p.viralPotentialScore >= pe.autoTargetMinScore);
+      for (const pat of candidates) {
+        summaries.push(applyExpansionPatternToDistribution(state, pat, "manual"));
+      }
+      if (candidates.length === 0) {
+        res.status(400).json({ error: `No patterns meet the >= ${pe.autoTargetMinScore} threshold.` });
+        return;
+      }
+    } else {
+      const target = pe.patterns.find((p) => p.id === patternId);
+      if (!target) {
+        res.status(404).json({ error: "Expansion pattern not found." });
+        return;
+      }
+      summaries.push(applyExpansionPatternToDistribution(state, target, "manual"));
+    }
+
+    saveWorkspace(state);
+    res.json({
+      config: state.config,
+      platformExpansion: state.platformExpansion,
+      summary: summaries.join(" | "),
+    });
+  });
+
+  app.post("/api/expansion/remove", (req, res) => {
+    const { platform } = (req.body || {}) as { platform?: SocialPlatform };
+    if (!platform) {
+      res.status(400).json({ error: "Platform is required." });
+      return;
+    }
+    const state = readWorkspace();
+    const summary = removeExpansionPlatformFromDistribution(state, platform);
+    saveWorkspace(state);
+    res.json({
+      config: state.config,
+      platformExpansion: state.platformExpansion,
+      summary,
+    });
+  });
+
+  // 43. A/B Test Monitor — Gemini Hook Variant & Editing Style Comparison + Bake Winner into Default Pipeline Config
+  app.post("/api/ai/ab-test/analyze", async (req, res) => {
+    const { focusNiche = "all", experimentGoal = "" } = (req.body || {}) as {
+      focusNiche?: ContentNiche | "all";
+      experimentGoal?: string;
+    };
+    const ai = getAiClient();
+    if (!ai) {
+      res.status(500).json({ error: "GEMINI_API_KEY is not configured. Add it in Settings > Secrets." });
+      return;
+    }
+    const state = readWorkspace();
+    const t0 = Date.now();
+
+    const scopedClips =
+      focusNiche === "all"
+        ? state.clips
+        : state.clips.filter((c) => (c.niche || "gaming") === focusNiche);
+    const activeClips = scopedClips.length > 0 ? scopedClips : state.clips;
+
+    const clipTelemetry = activeClips.slice(0, 14).map((c) => {
+      const m = c.publishedMetrics;
+      const totalViews = m
+        ? (m.tiktokViews || 0) +
+          (m.reelsViews || 0) +
+          (m.shortsViews || 0) +
+          (m.xViews || 0) +
+          (m.snapViews || 0) +
+          (m.fbViews || 0)
+        : c.views;
+      const shareRate = m && totalViews > 0 ? Number((((m.shares || 0) / totalViews) * 100).toFixed(2)) : 2.8;
+      const hookList = (c.hookVariants || [])
+        .slice(0, 3)
+        .map((h) => `${h.label}="${h.bannerText}" (${h.angle})`)
+        .join("; ");
+      return `- "${c.title}" | niche=${c.niche || "gaming"} | template=${c.layout.template} | caption=${c.layout.captionStyle} | prependHook=${c.layout.prependPeakHook} (${c.layout.hookDurationSec}s) | banner="${c.layout.hookBannerText}" | views=${totalViews} | watchHold=${m?.avgWatchPercent ?? 76}% | shareRate=${shareRate}% | rev=$${m?.estimatedRevenueUsd ?? 0} | hooks=[${hookList}]`;
+    });
+
+    const prompt = `You are a Quantitative Short-Form Video A/B Testing Analyst and Pipeline Optimization Engineer.
+Analyze this studio's actual clip performance metrics (views, watch retention %, share rate %, RPM) across different hook variants and editing styles, compare 4 distinct A/B/C/D test cohorts, and declare ONE clear statistical Winner to bake into the default Pipeline configuration.
+
+Current Default Pipeline Config:
+- template: ${state.config.layoutDefaults.template}
+- captionStyle: ${state.config.layoutDefaults.captionStyle}
+- prependPeakHook: ${state.config.layoutDefaults.prependPeakHook}
+- hookDurationSeconds: ${state.config.layoutDefaults.hookDurationSeconds}
+- facecamHeightPercent: ${state.config.layoutDefaults.facecamHeightPercent}
+- brandVoice: ${state.config.aiDirector?.brandVoice || "hype-arcade"}
+- Focus Niche: ${focusNiche}
+- Experiment Goal: ${experimentGoal.trim() || "Maximize combined average views and watch-hold retention %"}
+
+Studio Clip Performance & Hook Variant Dataset:
+${clipTelemetry.join("\n")}
+
+Return ONLY a valid JSON object (no markdown fences) with this exact shape:
+{
+  "winnerVariantId": "var_a",
+  "winnerLabel": "Short clear winner name combining hook style + editing template",
+  "confidencePct": 94,
+  "projectedViewsLiftPct": 34,
+  "projectedRetentionLiftPct": 12,
+  "executiveVerdict": "2 crisp data-grounded sentences explaining why the Winner beat the other variants on views and retention.",
+  "keyFindings": [
+    "Finding 1 with specific metric lift",
+    "Finding 2 comparing hook variant behavior",
+    "Finding 3 comparing editing/caption style retention"
+  ],
+  "variants": [
+    {
+      "variantId": "var_a",
+      "label": "Variant A · Concise Cohort Name",
+      "hookStyle": "Hook mechanic description",
+      "hookBannerSample": "SHORT UPPERCASE BANNER <= 34 CHARS",
+      "editingTemplate": "split-stack" | "fullscreen-pip" | "blurred-backdrop" | "reaction-focus" | "dual-cam" | "hud-zoom",
+      "captionStyle": "kinetic-highlight" | "bold-clean" | "minimal-lower" | "broadcast-lower" | "arcade-pop" | "comic-impact",
+      "hookDurationSeconds": 2.5,
+      "sampleClips": 4,
+      "avgViews": 152000,
+      "avgRetentionPct": 86,
+      "avgShareRatePct": 4.9,
+      "estRpmUsd": 3.2,
+      "isWinner": true
+    }
+  ],
+  "recommendedDefaults": {
+    "template": "split-stack" | "fullscreen-pip" | "blurred-backdrop" | "reaction-focus" | "dual-cam" | "hud-zoom",
+    "captionStyle": "kinetic-highlight" | "bold-clean" | "minimal-lower" | "broadcast-lower" | "arcade-pop" | "comic-impact",
+    "prependPeakHook": true,
+    "hookDurationSeconds": 2.5,
+    "facecamHeightPercent": 38,
+    "brandVoice": "hype-arcade" | "esports-analyst" | "storyteller-suspense" | "chaos-comedy",
+    "customVoicePrompt": "1-sentence default hook & pacing directive for the AI Director."
+  }
+}
+Return exactly 4 variants ("var_a", "var_b", "var_c", "var_d") where exactly ONE has isWinner: true and matches winnerVariantId and recommendedDefaults.`;
+
+    const validTemplates = new Set<LayoutTemplate>([
+      "split-stack",
+      "fullscreen-pip",
+      "blurred-backdrop",
+      "reaction-focus",
+      "dual-cam",
+      "hud-zoom",
+    ]);
+    const validCaptions = new Set<CaptionStylePreset>([
+      "kinetic-highlight",
+      "bold-clean",
+      "minimal-lower",
+      "broadcast-lower",
+      "arcade-pop",
+      "comic-impact",
+    ]);
+    const validVoices = new Set<AiDirectorPolicy["brandVoice"]>([
+      "hype-arcade",
+      "esports-analyst",
+      "storyteller-suspense",
+      "chaos-comedy",
+    ]);
+
+    try {
+      const { response, usedModel } = await generateGeminiWithSearchFallback(ai, prompt);
+      const parsed = extractJsonObject(response.text ?? "{}") as Partial<AbTestAnalysisSnapshot>;
+      const rawVariants = Array.isArray(parsed.variants) ? parsed.variants : [];
+      const fallbackTemplates: LayoutTemplate[] = ["split-stack", "blurred-backdrop", "reaction-focus", "fullscreen-pip"];
+      const fallbackCaptions: CaptionStylePreset[] = ["kinetic-highlight", "broadcast-lower", "arcade-pop", "bold-clean"];
+
+      const variants: AbTestVariantMetrics[] = rawVariants.slice(0, 4).map((v, idx) => {
+        const variantId = String(v.variantId || `var_${String.fromCharCode(97 + idx)}`).trim();
+        const editingTemplate = validTemplates.has(v.editingTemplate as LayoutTemplate)
+          ? (v.editingTemplate as LayoutTemplate)
+          : fallbackTemplates[idx % fallbackTemplates.length];
+        const captionStyle = validCaptions.has(v.captionStyle as CaptionStylePreset)
+          ? (v.captionStyle as CaptionStylePreset)
+          : fallbackCaptions[idx % fallbackCaptions.length];
+        return {
+          variantId,
+          label: String(v.label || `Variant ${String.fromCharCode(65 + idx)}`).trim(),
+          hookStyle: String(v.hookStyle || "Peak-moment curiosity opener").trim(),
+          hookBannerSample: String(v.hookBannerSample || "DON'T MISS THIS MOMENT").trim().slice(0, 42),
+          editingTemplate,
+          captionStyle,
+          hookDurationSeconds: Math.max(1.5, Math.min(5, Number((Number(v.hookDurationSeconds) || 2.5).toFixed(1)))),
+          sampleClips: Math.max(1, Math.round(Number(v.sampleClips) || 3)),
+          avgViews: Math.max(5000, Math.round(Number(v.avgViews) || 95000 - idx * 12000)),
+          avgRetentionPct: Math.max(45, Math.min(98, Math.round(Number(v.avgRetentionPct) || 82 - idx * 4))),
+          avgShareRatePct: Math.max(0.5, Math.min(18, Number((Number(v.avgShareRatePct) || 3.4).toFixed(1)))),
+          estRpmUsd: Math.max(0.5, Math.min(12, Number((Number(v.estRpmUsd) || 2.4).toFixed(2)))),
+          isWinner: Boolean(v.isWinner),
+        };
+      });
+
+      if (variants.length < 2) {
+        throw new Error("Gemini returned too few A/B test variants. Please retry.");
+      }
+
+      let winner =
+        variants.find((v) => v.variantId === parsed.winnerVariantId) ||
+        variants.find((v) => v.isWinner) ||
+        [...variants].sort((a, b) => b.avgViews * b.avgRetentionPct - a.avgViews * a.avgRetentionPct)[0];
+
+      variants.forEach((v) => {
+        v.isWinner = v.variantId === winner.variantId;
+      });
+
+      const rawRec = (parsed.recommendedDefaults || {}) as Partial<AbTestRecommendedDefaults>;
+      const recommendedDefaults: AbTestRecommendedDefaults = {
+        template: validTemplates.has(rawRec.template as LayoutTemplate)
+          ? (rawRec.template as LayoutTemplate)
+          : winner.editingTemplate,
+        captionStyle: validCaptions.has(rawRec.captionStyle as CaptionStylePreset)
+          ? (rawRec.captionStyle as CaptionStylePreset)
+          : winner.captionStyle,
+        prependPeakHook: rawRec.prependPeakHook !== false,
+        hookDurationSeconds: Math.max(
+          1.5,
+          Math.min(5, Number((Number(rawRec.hookDurationSeconds) || winner.hookDurationSeconds || 2.5).toFixed(1)))
+        ),
+        facecamHeightPercent: Math.max(
+          25,
+          Math.min(52, Math.round(Number(rawRec.facecamHeightPercent) || state.config.layoutDefaults.facecamHeightPercent || 38))
+        ),
+        brandVoice: validVoices.has(rawRec.brandVoice as AiDirectorPolicy["brandVoice"])
+          ? (rawRec.brandVoice as AiDirectorPolicy["brandVoice"])
+          : state.config.aiDirector?.brandVoice || "hype-arcade",
+        customVoicePrompt: String(
+          rawRec.customVoicePrompt ||
+            `Apply winning ${winner.hookStyle} with ${winner.captionStyle} captions and ${winner.hookDurationSeconds}s peak hook prepend.`
+        ).trim(),
+      };
+
+      const analysis: AbTestAnalysisSnapshot = {
+        id: `ab_${Date.now()}`,
+        analyzedAt: new Date().toISOString(),
+        modelUsed: usedModel,
+        focusNiche,
+        winnerVariantId: winner.variantId,
+        winnerLabel: String(parsed.winnerLabel || winner.label).trim(),
+        confidencePct: Math.max(70, Math.min(99, Math.round(Number(parsed.confidencePct) || 92))),
+        projectedViewsLiftPct: Math.max(5, Math.min(120, Math.round(Number(parsed.projectedViewsLiftPct) || 28))),
+        projectedRetentionLiftPct: Math.max(2, Math.min(35, Math.round(Number(parsed.projectedRetentionLiftPct) || 9))),
+        executiveVerdict: String(
+          parsed.executiveVerdict ||
+            `${winner.label} achieved the strongest combined views (${winner.avgViews.toLocaleString()}) and retention (${winner.avgRetentionPct}%) across tested variants.`
+        ).trim(),
+        keyFindings: Array.isArray(parsed.keyFindings)
+          ? parsed.keyFindings.map((f) => String(f).trim()).filter(Boolean).slice(0, 4)
+          : [
+              `${winner.editingTemplate} paired with ${winner.captionStyle} led retention at ${winner.avgRetentionPct}%.`,
+              `${winner.hookDurationSeconds}s hook prepend lifted share velocity to ${winner.avgShareRatePct}%.`,
+            ],
+        variants,
+        recommendedDefaults,
+      };
+
+      state.abTestAnalysis = analysis;
+      pushTelemetry(state, {
+        category: "gemini",
+        endpoint: "/api/ai/ab-test/analyze",
+        latencyMs: Date.now() - t0,
+        success: true,
+        model: usedModel,
+      });
+      saveWorkspace(state);
+      res.json({ abTestAnalysis: analysis });
+    } catch (err) {
+      pushTelemetry(state, {
+        category: "gemini",
+        endpoint: "/api/ai/ab-test/analyze",
+        latencyMs: Date.now() - t0,
+        success: false,
+        model: "gemini-4-hydrogen",
+      });
+      saveWorkspace(state);
+      res.status(500).json({ error: formatApiError(err, "Gemini A/B Test analysis failed.") });
+    }
+  });
+
+  app.post("/api/ab-test/bake-winner", (_req, res) => {
+    const state = readWorkspace();
+    const analysis = state.abTestAnalysis || buildSeedAbTestAnalysis();
+    const rec = analysis.recommendedDefaults;
+
+    state.config.layoutDefaults = {
+      ...state.config.layoutDefaults,
+      template: rec.template,
+      captionStyle: rec.captionStyle,
+      prependPeakHook: rec.prependPeakHook,
+      hookDurationSeconds: rec.hookDurationSeconds,
+      facecamHeightPercent: rec.facecamHeightPercent,
+    };
+
+    if (state.config.aiDirector) {
+      state.config.aiDirector = {
+        ...state.config.aiDirector,
+        brandVoice: rec.brandVoice || state.config.aiDirector.brandVoice,
+        customVoicePrompt: rec.customVoicePrompt || state.config.aiDirector.customVoicePrompt,
+      };
+    }
+
+    const bakedAt = new Date().toISOString();
+    const summary = `Baked "${analysis.winnerLabel}" into default Pipeline config: template=${rec.template}, caption=${rec.captionStyle}, hook=${rec.hookDurationSeconds}s (prepend=${rec.prependPeakHook ? "on" : "off"}), facecam=${rec.facecamHeightPercent}%.`;
+    analysis.bakedIntoConfigAt = bakedAt;
+    analysis.bakedSummary = summary;
+    state.abTestAnalysis = analysis;
+
+    saveWorkspace(state);
+    try {
+      fs.writeFileSync(PIPELINE_CONFIG_FILE, JSON.stringify(state.config, null, 2));
+    } catch {
+      // Keep workspace.json persisted even if pipeline.config.json is read-only
+    }
+
+    res.json({
+      config: state.config,
+      abTestAnalysis: analysis,
+      summary,
+    });
+  });
+
   // Real background scheduler tick for continuous self-research & recurring Knowledge Acquisition
   setInterval(async () => {
     try {
@@ -8503,6 +9400,16 @@ Include ALL 6 platforms in platformCpmTrends and EXACTLY ${safeHorizon} months (
     }
   }, 5 * 60 * 1000);
 
+  registerSuiteRoutes(app, {
+    dataDir: DATA_DIR,
+    pipelineConfigFile: PIPELINE_CONFIG_FILE,
+    getAiClient,
+    readWorkspace,
+    saveWorkspace,
+    pushTelemetry,
+    formatApiError,
+  });
+
   if (process.env.NODE_ENV === "production") {
     const distDir = path.join(ROOT_DIR, "dist");
     app.use(express.static(distDir));
@@ -8517,7 +9424,15 @@ Include ALL 6 platforms in platformCpmTrends and EXACTLY ${safeHorizon} months (
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const httpServer = createHttpServer(app);
+  attachLiveVoiceWebSocket(httpServer, {
+    getAiClient,
+    readWorkspace,
+    saveWorkspace,
+    formatApiError,
+  });
+
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`ClipForge server running on http://localhost:${PORT}`);
   });
 }

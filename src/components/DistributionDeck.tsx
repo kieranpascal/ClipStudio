@@ -67,6 +67,12 @@ const ALL_PLATFORMS: SocialPlatform[] = [
   "X Video",
   "Snapchat Spotlight",
   "Facebook Reels",
+  "LinkedIn Video",
+  "Reddit Native Video",
+  "Pinterest Idea Pins",
+  "Threads Video",
+  "Bluesky Video",
+  "Substack Video",
 ];
 
 const HEATMAP_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
