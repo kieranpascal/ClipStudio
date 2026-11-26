@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
+  BarChart,
   Bar,
   Line,
   XAxis,
@@ -10,6 +11,7 @@ import {
   Tooltip,
   Legend,
   Cell,
+  ReferenceLine,
 } from "recharts";
 import {
   FlaskConical,
@@ -46,11 +48,22 @@ interface AbFunnelTestPanelProps {
 }
 
 const PLACEMENT_LABELS: Record<CtaPlacementType, string> = {
-  "pre-roll-hook-banner": "Pre-Roll Hook (0–3s)",
-  "mid-roll-verbal-lower-third": "Mid-Roll Verbal + Lower-3rd",
-  "pinned-comment-bio": "Pinned Comment + Bio",
-  "end-card-offer-slate": "End-Card Offer Slate",
-  "split-screen-callout": "Split-Screen Proof Callout",
+  "pre-roll-hook-banner": "Intro (0–3s Hook)",
+  "mid-roll-verbal-lower-third": "Mid-Roll Verbal",
+  "pinned-comment-bio": "Pinned / Bio",
+  "end-card-offer-slate": "Outro End-Card",
+  "split-screen-callout": "Split-Screen",
+};
+
+const PLACEMENT_GROUP_BUCKET: Record<
+  CtaPlacementType,
+  { groupKey: string; groupLabel: string; slotHint: string }
+> = {
+  "pre-roll-hook-banner": { groupKey: "intro", groupLabel: "Intro", slotHint: "0–3s Hook Banner" },
+  "mid-roll-verbal-lower-third": { groupKey: "mid-roll", groupLabel: "Mid-Roll", slotHint: "10–18s Verbal + L3" },
+  "split-screen-callout": { groupKey: "split-screen", groupLabel: "Split-Screen", slotHint: "Visual Proof Callout" },
+  "pinned-comment-bio": { groupKey: "pinned-bio", groupLabel: "Pinned / Bio", slotHint: "Comment + Bio Bridge" },
+  "end-card-offer-slate": { groupKey: "outro", groupLabel: "Outro", slotHint: "Final 3s Offer Slate" },
 };
 
 const NICHE_OPTIONS: Array<{ id: ContentNiche; label: string }> = [
@@ -71,6 +84,7 @@ export function AbFunnelTestPanel({
   onApplyFunnelWinner,
 }: AbFunnelTestPanelProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [chartTab, setChartTab] = useState<"placement-boost" | "variant-detail">("placement-boost");
   const [focusSponsor, setFocusSponsor] = useState("");
   const [label, setLabel] = useState("");
   const [placement, setPlacement] = useState<CtaPlacementType>("mid-roll-verbal-lower-third");
@@ -90,6 +104,66 @@ export function AbFunnelTestPanel({
     () => variants.find((v) => v.isWinner || v.id === funnelTest?.winnerVariantId) || variants[0],
     [variants, funnelTest?.winnerVariantId]
   );
+
+  // Group CTA variants by placement location (Intro, Mid-Roll, Outro, Pinned/Bio, Split-Screen)
+  // and calculate the average conversion boost (%) relative to overall baseline conversion rate
+  const placementBoostData = useMemo(() => {
+    if (variants.length === 0) return [];
+    const baselineConv =
+      variants.reduce((sum, v) => sum + v.conversionRatePct, 0) / Math.max(1, variants.length);
+
+    const groups = new Map<
+      string,
+      {
+        groupKey: string;
+        groupLabel: string;
+        slotHint: string;
+        variantCount: number;
+        convSum: number;
+        ctrSum: number;
+        rev1kSum: number;
+      }
+    >();
+
+    for (const v of variants) {
+      const bucket = PLACEMENT_GROUP_BUCKET[v.placement] || {
+        groupKey: v.placement,
+        groupLabel: v.placement,
+        slotHint: "CTA Slot",
+      };
+      const curr = groups.get(bucket.groupKey) || {
+        ...bucket,
+        variantCount: 0,
+        convSum: 0,
+        ctrSum: 0,
+        rev1kSum: 0,
+      };
+      curr.variantCount += 1;
+      curr.convSum += v.conversionRatePct;
+      curr.ctrSum += v.ctrPct;
+      curr.rev1kSum += v.revenuePer1kUsd;
+      groups.set(bucket.groupKey, curr);
+    }
+
+    return Array.from(groups.values())
+      .map((g) => {
+        const avgConversionRatePct = Number((g.convSum / g.variantCount).toFixed(2));
+        const avgCtrPct = Number((g.ctrSum / g.variantCount).toFixed(2));
+        const avgRevPer1kUsd = Number((g.rev1kSum / g.variantCount).toFixed(2));
+        const avgConversionBoostPct =
+          baselineConv > 0
+            ? Number((((avgConversionRatePct - baselineConv) / baselineConv) * 100).toFixed(1))
+            : 0;
+        return {
+          ...g,
+          avgConversionRatePct,
+          avgCtrPct,
+          avgRevPer1kUsd,
+          avgConversionBoostPct,
+        };
+      })
+      .sort((a, b) => b.avgConversionBoostPct - a.avgConversionBoostPct);
+  }, [variants]);
 
   const chartData = useMemo(
     () =>
@@ -407,61 +481,193 @@ export function AbFunnelTestPanel({
           </div>
         )}
 
-        {/* Recharts Visualization: Sponsor Conversion Rate & Revenue/1K across CTA Placements */}
+        {/* Recharts Visualization: Grouped Placement Conversion Boost (%) vs. Variant Detail */}
         {chartData.length > 0 && (
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#252A36" strokeOpacity={0.25} />
-                <XAxis
-                  dataKey="shortName"
-                  tick={{ fontSize: 11, fill: "#64748B" }}
-                  interval={0}
-                  tickLine={false}
-                />
-                <YAxis
-                  yAxisId="left"
-                  tick={{ fontSize: 11, fill: "#64748B" }}
-                  tickFormatter={(v) => `${v}%`}
-                  width={44}
-                />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  tick={{ fontSize: 11, fill: "#64748B" }}
-                  tickFormatter={(v) => `$${v}`}
-                  width={48}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#141720",
-                    borderColor: "#252A36",
-                    borderRadius: "2px",
-                    fontSize: "12px",
-                    color: "#F1F5F9",
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: "11px" }} />
-                <Bar yAxisId="left" dataKey="conversionRatePct" name="Sponsor Conv. Rate %" radius={[2, 2, 0, 0]}>
-                  {chartData.map((entry) => (
-                    <Cell
-                      key={entry.id}
-                      fill={entry.isWinner ? "#E1392B" : "#475569"}
-                    />
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9]">
+                {chartTab === "placement-boost"
+                  ? "Average Conversion Boost (%) Grouped by CTA Placement Location"
+                  : "Per-Variant Sponsor Conversion Rate, CTR & Revenue per 1K Views"}
+              </div>
+              <div className="inline-flex items-center p-0.5 rounded-sm bg-[#ECEFF3] dark:bg-[#171A21] border border-[#D9DEE7] dark:border-[#262B37] text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setChartTab("placement-boost")}
+                  className={`px-2.5 py-1 rounded-xs font-medium transition-colors ${
+                    chartTab === "placement-boost"
+                      ? "bg-[#E1392B] text-white"
+                      : "text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white"
+                  }`}
+                >
+                  Grouped Placement Boost (%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartTab("variant-detail")}
+                  className={`px-2.5 py-1 rounded-xs font-medium transition-colors ${
+                    chartTab === "variant-detail"
+                      ? "bg-[#E1392B] text-white"
+                      : "text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white"
+                  }`}
+                >
+                  Variant Detail
+                </button>
+              </div>
+            </div>
+
+            {chartTab === "placement-boost" && placementBoostData.length > 0 ? (
+              <div className="space-y-3">
+                <div className="h-60 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={placementBoostData}
+                      margin={{ top: 12, right: 16, left: 4, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#252A36" strokeOpacity={0.25} />
+                      <XAxis
+                        dataKey="groupLabel"
+                        tick={{ fontSize: 11, fill: "#64748B" }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "#64748B" }}
+                        tickFormatter={(v) => `${v > 0 ? "+" : ""}${v}%`}
+                        width={52}
+                      />
+                      <ReferenceLine y={0} stroke="#64748B" strokeDasharray="4 4" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#141720",
+                          borderColor: "#252A36",
+                          borderRadius: "2px",
+                          fontSize: "12px",
+                          color: "#F1F5F9",
+                        }}
+                        formatter={(value, name) => {
+                          const num = Number(value ?? 0);
+                          const label = String(name ?? "");
+                          if (label === "Avg Conv. Boost vs Baseline") {
+                            return [`${num > 0 ? "+" : ""}${num.toFixed(1)}%`, label];
+                          }
+                          return [`${num.toFixed(2)}%`, label];
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: "11px" }} />
+                      <Bar
+                        dataKey="avgConversionBoostPct"
+                        name="Avg Conv. Boost vs Baseline"
+                        radius={[2, 2, 0, 0]}
+                      >
+                        {placementBoostData.map((entry, idx) => (
+                          <Cell
+                            key={entry.groupKey}
+                            fill={
+                              idx === 0 && entry.avgConversionBoostPct > 0
+                                ? "#E1392B"
+                                : entry.avgConversionBoostPct >= 0
+                                  ? "#10B981"
+                                  : "#64748B"
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Compact Grouped Placement Location Comparison Strip */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  {placementBoostData.map((g, idx) => (
+                    <div
+                      key={g.groupKey}
+                      className={`p-2.5 rounded-sm border text-xs ${
+                        idx === 0
+                          ? "border-[#E1392B]/50 bg-[#E1392B]/[0.04] dark:bg-[#E1392B]/[0.07]"
+                          : "border-[#D9DEE7] dark:border-[#222631] bg-[#F6F7F9]/60 dark:bg-[#0D0F14]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-[#0F172A] dark:text-[#F1F5F9] truncate">
+                          {g.groupLabel}
+                        </span>
+                        <span className="font-mono text-[10px] text-slate-500">
+                          {g.variantCount}v
+                        </span>
+                      </div>
+                      <div
+                        className={`font-mono text-sm font-bold tabular-nums mt-0.5 ${
+                          g.avgConversionBoostPct >= 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"
+                        }`}
+                      >
+                        {g.avgConversionBoostPct > 0 ? "+" : ""}
+                        {g.avgConversionBoostPct.toFixed(1)}% boost
+                      </div>
+                      <div className="font-mono text-[10px] tabular-nums text-slate-500 mt-0.5">
+                        {g.avgConversionRatePct.toFixed(2)}% conv · ${g.avgRevPer1kUsd.toFixed(2)}/1K
+                      </div>
+                    </div>
                   ))}
-                </Bar>
-                <Bar yAxisId="left" dataKey="ctrPct" name="CTA CTR %" fill="#2563EB" radius={[2, 2, 0, 0]} />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="revenuePer1kUsd"
-                  name="Sponsor Rev / 1K ($)"
-                  stroke="#10B981"
-                  strokeWidth={2.5}
-                  dot={{ r: 4 }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
+                </div>
+              </div>
+            ) : (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#252A36" strokeOpacity={0.25} />
+                    <XAxis
+                      dataKey="shortName"
+                      tick={{ fontSize: 11, fill: "#64748B" }}
+                      interval={0}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tick={{ fontSize: 11, fill: "#64748B" }}
+                      tickFormatter={(v) => `${v}%`}
+                      width={44}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 11, fill: "#64748B" }}
+                      tickFormatter={(v) => `$${v}`}
+                      width={48}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#141720",
+                        borderColor: "#252A36",
+                        borderRadius: "2px",
+                        fontSize: "12px",
+                        color: "#F1F5F9",
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: "11px" }} />
+                    <Bar yAxisId="left" dataKey="conversionRatePct" name="Sponsor Conv. Rate %" radius={[2, 2, 0, 0]}>
+                      {chartData.map((entry) => (
+                        <Cell
+                          key={entry.id}
+                          fill={entry.isWinner ? "#E1392B" : "#475569"}
+                        />
+                      ))}
+                    </Bar>
+                    <Bar yAxisId="left" dataKey="ctrPct" name="CTA CTR %" fill="#2563EB" radius={[2, 2, 0, 0]} />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="revenuePer1kUsd"
+                      name="Sponsor Rev / 1K ($)"
+                      stroke="#10B981"
+                      strokeWidth={2.5}
+                      dot={{ r: 4 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         )}
 

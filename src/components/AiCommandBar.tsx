@@ -13,15 +13,19 @@ interface AiCommandBarProps {
 }
 
 const QUICK_NAV: Array<{ label: string; tab: WorkspaceTab }> = [
-  { label: "Jump to Vertical Studio & Voiceover Engine", tab: "studio" },
-  { label: "Jump to Research & Media Bin", tab: "ingest" },
-  { label: "Jump to VOD & Highlights", tab: "vod" },
-  { label: "Jump to Templates & B-Roll", tab: "templates" },
-  { label: "Jump to Publish & Channel Fleet", tab: "distribution" },
-  { label: "Jump to AI Ops Agent & LM Studio", tab: "autopilot" },
-  { label: "Jump to Performance Monitor (Hourly Velocity)", tab: "performance" },
-  { label: "Jump to GitOps & Live Telemetry", tab: "gitops" },
-  { label: "Jump to Presentation Guide", tab: "guide" },
+  { label: "Jump to Studio Dashboard (Action Queue & Telemetry)", tab: "dashboard" },
+  { label: "Jump to Cut Studio & Voiceover Engine", tab: "studio" },
+  { label: "Jump to Research, Opportunity Discovery & Competitor Gaps", tab: "ingest" },
+  { label: "Jump to VOD Slicer & Highlights", tab: "vod" },
+  { label: "Jump to Templates, B-Roll & Asset Alignment", tab: "templates" },
+  { label: "Jump to Asset Discovery Vault (Public Domain & Memes)", tab: "assets" },
+  { label: "Jump to Multimodal AI Lab (Live Voice, Video, Images, Lyria Music)", tab: "ai-lab" },
+  { label: "Jump to Monetization Hub (Affiliates, Lead Pages, Funnels, Deep Research)", tab: "monetization" },
+  { label: "Jump to Performance & ROI Monitor (Velocity, Heatmap, Alerts)", tab: "performance" },
+  { label: "Jump to Channels & Publishing Fleet", tab: "distribution" },
+  { label: "Jump to AI Autopilot, Self-Learning & Windows PC LM Studio", tab: "autopilot" },
+  { label: "Jump to GitOps, CI/CD & Windows/VPS Workers", tab: "gitops" },
+  { label: "Jump to Pitch Deck, Training Academy & Feature Atlas", tab: "guide" },
 ];
 
 export function AiCommandBar({

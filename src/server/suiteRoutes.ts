@@ -2128,6 +2128,8 @@ export function buildSeedOpportunityDiscovery(): OpportunityDiscoverySnapshot {
     lastScannedAt: nowIso,
     focusNiche: "all",
     freshness: "7d",
+    scanMode: "library-gap",
+    competitorChannelsAudited: ["@Fireship", "@MKBHD", "@TheAIAdvantage", "@GrahamStephan", "@AliAbdaal"],
     modelUsed: "baseline-library-audit",
     libraryClipCountAudited: 6,
     excludedCoveredTopics: [
@@ -2139,10 +2141,61 @@ export function buildSeedOpportunityDiscovery(): OpportunityDiscoverySnapshot {
     ],
     topics: [
       {
+        id: "oppgap_comp_seed_1",
+        topic: "Split-Screen Cost Audit: Local Ollama vs. Cloud API Subscriptions for Creators",
+        niche: "tech-ai",
+        subCategory: "Live Cost Teardown Format",
+        gapType: "competitor-gap",
+        competitorChannel: "@Fireship",
+        competitorBlindspot:
+          "@Fireship covers model launches in 100s news format, but never publishes vertical side-by-side billing teardowns paired with an email-gated local setup kit.",
+        autoDraftedToOpportunities: true,
+        savedToResearch: true,
+        demandVelocity: "exploding",
+        searchTrendSignal:
+          "Comments under top tech channels repeatedly ask 'what is the real monthly cost on a home Windows GPU?'",
+        whyUncovered:
+          "Neither @Fireship nor your current clip library covers creator-specific GPU cost math with affiliate cloud fallback.",
+        suggestedHook: "Fireship skipped the billing tab — here is the exact $0/mo Windows setup.",
+        angleBrief:
+          "Run a 34s split-screen invoice teardown + live local inference timer, ending with a pinned email opt-in landing page for the script.",
+        recommendedFormat: "authority-breakdown",
+        estimatedRpmUsd: 5.8,
+        noveltyPct: 97,
+        closestLibraryClipTitle: "Why 90% of Devs Are Switching to Agentic IDEs",
+        discoveredAt: nowIso,
+      },
+      {
+        id: "oppgap_comp_seed_2",
+        topic: "How 1 Viral Short Builds a 5,000-Subscriber Affiliate Email List in 14 Days",
+        niche: "finance",
+        subCategory: "Funnel Teardown Format",
+        gapType: "competitor-gap",
+        competitorChannel: "@AliAbdaal",
+        competitorBlindspot:
+          "@AliAbdaal teaches broad productivity & long-form YouTube, leaving short-form-to-email-capture affiliate bridge workflows uncovered.",
+        autoDraftedToOpportunities: true,
+        savedToResearch: true,
+        demandVelocity: "exploding",
+        searchTrendSignal:
+          "Creator economy Reddit & X threads show sharp spikes searching for affiliate bridge pages that survive Shorts algorithm swings.",
+        whyUncovered:
+          "Top creator-finance channels rarely share vertical funnel conversion numbers from pinned comment to affiliate EPC.",
+        suggestedHook: "Views don't pay rent — this 2-step pinned link turns 10K Shorts views into $420.",
+        angleBrief:
+          "Show the 3-box funnel diagram (Short -> Free Kit Opt-In -> Affiliate Partner Bridge) with live CTR & EPC overlay.",
+        recommendedFormat: "faceless-narration",
+        estimatedRpmUsd: 7.1,
+        noveltyPct: 98,
+        closestLibraryClipTitle: "Creator Economy RPM Breakdown",
+        discoveredAt: nowIso,
+      },
+      {
         id: "oppgap_seed_1",
         topic: "Local Desktop AI Agents Replacing $200/mo SaaS Subscriptions",
         niche: "tech-ai",
         subCategory: "Local AI Workflows",
+        gapType: "library-gap",
         demandVelocity: "exploding",
         searchTrendSignal:
           "Surging developer & solopreneur search volume around running zero-API-cost local models on consumer GPUs.",
@@ -2162,6 +2215,7 @@ export function buildSeedOpportunityDiscovery(): OpportunityDiscoverySnapshot {
         topic: "How 2026 Platform CPM Floors Reward 45-Second Retention Loops",
         niche: "finance",
         subCategory: "Creator Monetization",
+        gapType: "library-gap",
         demandVelocity: "exploding",
         searchTrendSignal:
           "High search velocity for YouTube Shorts & TikTok Creativity Program RPM thresholds above the 35s watch mark.",
@@ -2181,6 +2235,7 @@ export function buildSeedOpportunityDiscovery(): OpportunityDiscoverySnapshot {
         topic: "Steam Next Fest Indie Breakout Demos Pulling 50K Concurrent Players",
         niche: "gaming",
         subCategory: "Indie Breakout Radar",
+        gapType: "library-gap",
         demandVelocity: "rising",
         searchTrendSignal:
           "Fast-rising search spikes for surprise co-op survival & extraction demos with under-saturated short-form clip coverage.",
@@ -2200,6 +2255,7 @@ export function buildSeedOpportunityDiscovery(): OpportunityDiscoverySnapshot {
         topic: "The Unbuilt Mega-Projects Quietly Reshaping Global Fiber & Data Centers",
         niche: "faceless-doc",
         subCategory: "Infrastructure Micro-Doc",
+        gapType: "library-gap",
         demandVelocity: "rising",
         searchTrendSignal:
           "Strong evergreen + news search demand around subsea AI cables, nuclear micro-grids, and desert server campuses.",

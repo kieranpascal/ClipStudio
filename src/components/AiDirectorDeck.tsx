@@ -18,26 +18,32 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type {
+  AffiliateOfferLink,
   AgentChatMessage,
   AiComputeRoutingConfig,
   AiComputeTierId,
   AiDirectorPolicy,
   AutonomousMission,
+  ClipItem,
   CompetitorBreakdown,
   ContentNiche,
   CtaPlacementType,
   DirectorRunResult,
+  EmailCaptureLandingPage,
   HostingStageId,
   IndustryNewsSnapshot,
   KnowledgeAcquisitionState,
   LearningDiscoveryType,
   LocalLlmConfig,
+  LongFormGraduationItem,
   MissionAutonomyMode,
   MissionScheduleCadence,
   MissionStageId,
   MonetizationPlan,
   PipelineConfig,
   PlatformExpansionState,
+  RemoteBridgeConfig,
+  RemoteMessagingPlatform,
   SelfLearningCadence,
   SelfLearningState,
   SocialPlatform,
@@ -77,6 +83,11 @@ interface AiDirectorDeckProps {
   knowledgeAcquisition?: KnowledgeAcquisitionState;
   platformExpansion?: PlatformExpansionState;
   computeRouting?: AiComputeRoutingConfig;
+  clips?: ClipItem[];
+  affiliateOffers?: AffiliateOfferLink[];
+  emailLandingPages?: EmailCaptureLandingPage[];
+  longFormPipeline?: LongFormGraduationItem[];
+  remoteBridge?: RemoteBridgeConfig;
   initialSubTab?: "mission" | "monetization" | "expansion" | "agent" | "compute" | "voice";
   isStartingMission: boolean;
   isAdvancingMission: boolean;
@@ -176,6 +187,26 @@ interface AiDirectorDeckProps {
   onAnalyzeCompetitor: (rivalTitle: string, rivalTranscript: string) => Promise<CompetitorBreakdown | null>;
   onTestLocalLlm: (baseUrl: string) => Promise<LocalLlmTestResult | null>;
   onFetchWorkerPack: () => Promise<WorkerPackData | null>;
+  onAddAffiliateOffer?: (payload: {
+    partnerName: string;
+    niche: ContentNiche;
+    offerHook: string;
+    destinationUrl: string;
+    commissionPct: number;
+    estEpcUsd: number;
+  }) => Promise<void>;
+  onDeleteAffiliateOffer?: (id: string) => Promise<void>;
+  onAddLandingPage?: (payload: {
+    headline: string;
+    leadMagnetTitle: string;
+    subheadline: string;
+    ctaButtonText: string;
+    linkedAffiliateId?: string;
+    niche: ContentNiche;
+  }) => Promise<void>;
+  onGraduateToLongForm?: (clipId: string) => Promise<void>;
+  onUpdateRemoteBridge?: (patch: Partial<RemoteBridgeConfig>) => Promise<void>;
+  onRunRemoteCommand?: (platform: RemoteMessagingPlatform, command: string) => Promise<void>;
 }
 
 const QUICK_AGENT_PROMPTS = [
@@ -229,6 +260,11 @@ export function AiDirectorDeck({
   knowledgeAcquisition,
   platformExpansion,
   computeRouting,
+  clips = [],
+  affiliateOffers = [],
+  emailLandingPages = [],
+  longFormPipeline = [],
+  remoteBridge,
   initialSubTab = "mission",
   isStartingMission,
   isAdvancingMission,
@@ -278,6 +314,12 @@ export function AiDirectorDeck({
   onAnalyzeCompetitor,
   onTestLocalLlm,
   onFetchWorkerPack,
+  onAddAffiliateOffer,
+  onDeleteAffiliateOffer,
+  onAddLandingPage,
+  onGraduateToLongForm,
+  onUpdateRemoteBridge,
+  onRunRemoteCommand,
 }: AiDirectorDeckProps) {
   const [subTab, setSubTab] = useState<"mission" | "monetization" | "expansion" | "agent" | "compute" | "voice">(initialSubTab);
 
@@ -483,6 +525,17 @@ export function AiDirectorDeck({
             onAdoptDiscovery={onAdoptDiscovery}
             onRunKnowledgeCrawl={onRunKnowledgeCrawl}
             onOpenIngestOpportunities={onOpenIngestOpportunities}
+            clips={clips}
+            affiliateOffers={affiliateOffers}
+            emailLandingPages={emailLandingPages}
+            longFormPipeline={longFormPipeline}
+            remoteBridge={remoteBridge}
+            onAddAffiliateOffer={onAddAffiliateOffer}
+            onDeleteAffiliateOffer={onDeleteAffiliateOffer}
+            onAddLandingPage={onAddLandingPage}
+            onGraduateToLongForm={onGraduateToLongForm}
+            onUpdateRemoteBridge={onUpdateRemoteBridge}
+            onRunRemoteCommand={onRunRemoteCommand}
           />
         </div>
       )}

@@ -38,8 +38,11 @@ import {
 } from "lucide-react";
 import type {
   AbTestAnalysisSnapshot,
+  AffiliateOfferLink,
   ClipItem,
+  CompetitiveNicheAlert,
   ContentNiche,
+  EmailCaptureLandingPage,
   MonetizationPlan,
   PipelineConfig,
   RevenueGrowthAlert,
@@ -51,14 +54,20 @@ import { ViralGrowthHeatmap } from "./ViralGrowthHeatmap";
 import { AbTestMonitorPanel } from "./AbTestMonitorPanel";
 import { RevenueGrowthAlertsBanner } from "./RevenueGrowthAlertsBanner";
 import { GrowthVelocityChart } from "./GrowthVelocityChart";
+import { SponsorHealthMonitor } from "./SponsorHealthMonitor";
+import { CompetitiveNicheAlertsPanel } from "./CompetitiveNicheAlertsPanel";
+import { ClipAttributionSankeyPanel } from "./ClipAttributionSankeyPanel";
 
 interface PerformanceMonitorViewProps {
   clips: ClipItem[];
   config: PipelineConfig;
   uiMode: UiMode;
   monetizationPlan?: MonetizationPlan;
+  affiliateOffers?: AffiliateOfferLink[];
+  emailLandingPages?: EmailCaptureLandingPage[];
   abTestAnalysis?: AbTestAnalysisSnapshot;
   revenueAlerts?: RevenueGrowthAlert[];
+  competitiveAlerts?: CompetitiveNicheAlert[];
   viralSentiment?: ViralSentimentSnapshot;
   isScanningSentiment?: boolean;
   isApplyingSentiment?: boolean;
@@ -66,6 +75,8 @@ interface PerformanceMonitorViewProps {
   isBakingWinner?: boolean;
   isScanningAlerts?: boolean;
   shiftingAlertId?: string | null;
+  isScanningCompetitiveAlerts?: boolean;
+  launchingCompetitiveAlertId?: string | null;
   isGeneratingSeoFor: string | null;
   onGenerateSeo: (clipId: string) => Promise<void>;
   onScanViralSentiment?: (niche: ContentNiche, topicQuery?: string) => Promise<void>;
@@ -85,6 +96,9 @@ interface PerformanceMonitorViewProps {
   onScanRevenueAlerts?: (sponsorConvRatePct: number, sponsorAvgOrderUsd: number) => Promise<void>;
   onShiftAlertFocus?: (alertId: string) => Promise<void>;
   onDismissRevenueAlert?: (alertId: string) => Promise<void>;
+  onScanCompetitiveAlerts?: (niche: ContentNiche | "all") => Promise<void>;
+  onLaunchRapidMission?: (alertId: string) => Promise<void>;
+  onDismissCompetitiveAlert?: (alertId: string) => Promise<void>;
   onOpenInStudio: (clipId: string) => void;
   onAskAgent: (prompt: string) => Promise<void>;
   onLaunchMissionForNiche?: (nicheLabel: string) => Promise<void>;
@@ -120,8 +134,11 @@ export function PerformanceMonitorView({
   config,
   uiMode,
   monetizationPlan,
+  affiliateOffers = [],
+  emailLandingPages = [],
   abTestAnalysis,
   revenueAlerts = [],
+  competitiveAlerts = [],
   viralSentiment,
   isScanningSentiment = false,
   isApplyingSentiment = false,
@@ -129,6 +146,8 @@ export function PerformanceMonitorView({
   isBakingWinner = false,
   isScanningAlerts = false,
   shiftingAlertId = null,
+  isScanningCompetitiveAlerts = false,
+  launchingCompetitiveAlertId = null,
   isGeneratingSeoFor,
   onGenerateSeo,
   onScanViralSentiment,
@@ -139,6 +158,9 @@ export function PerformanceMonitorView({
   onScanRevenueAlerts,
   onShiftAlertFocus,
   onDismissRevenueAlert,
+  onScanCompetitiveAlerts,
+  onLaunchRapidMission,
+  onDismissCompetitiveAlert,
   onOpenInStudio,
   onAskAgent,
   onLaunchMissionForNiche,
@@ -1128,8 +1150,27 @@ export function PerformanceMonitorView({
         )}
       </section>
 
-      {/* Recharts Growth Velocity Chart: Historical Revenue Growth vs. Current Month-to-Date Momentum */}
+      {/* Recharts Growth Velocity Chart: Historical Revenue Growth vs. Current Month-to-Date Momentum + 30d MA */}
       <GrowthVelocityChart clips={clips} monetizationPlan={monetizationPlan} />
+
+      {/* Competitive Niche Alerts: Under-Monetized Competitor Releases + Rapid-Response Clipping Missions */}
+      {onScanCompetitiveAlerts && onLaunchRapidMission && onDismissCompetitiveAlert && (
+        <CompetitiveNicheAlertsPanel
+          alerts={competitiveAlerts}
+          isScanning={isScanningCompetitiveAlerts}
+          launchingAlertId={launchingCompetitiveAlertId}
+          onScanCompetitiveAlerts={onScanCompetitiveAlerts}
+          onLaunchRapidMission={onLaunchRapidMission}
+          onDismissAlert={onDismissCompetitiveAlert}
+        />
+      )}
+
+      {/* Sponsor Health & Burn Rate Alert: Top 3 Campaigns (CTR per $100 spent & <= -10% ROI drop flag) */}
+      <SponsorHealthMonitor
+        monetizationPlan={monetizationPlan}
+        onOpenFunnelTest={() => onOpenMonetizationHub?.()}
+        onAskAgent={onAskAgent}
+      />
 
       {/* 90-Day Revenue Projection Chart: Expected vs. Actual Ad-Revenue (from Monetization Plan) */}
       <section className="mx-5 mb-5 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] p-5 space-y-5">
@@ -1455,6 +1496,15 @@ export function PerformanceMonitorView({
           onBakeAbWinnerToConfig={onBakeAbWinnerToConfig}
         />
       )}
+
+      {/* Clip-Level Revenue Attribution Panel (Clip -> CTA Variant -> Conversion Event Sankey Diagram) */}
+      <ClipAttributionSankeyPanel
+        clips={clips}
+        monetizationPlan={monetizationPlan}
+        affiliateOffers={affiliateOffers}
+        emailLandingPages={emailLandingPages}
+        onOpenInStudio={onOpenInStudio}
+      />
 
       {/* Revenue Attribution & Niche ROI Panel (Recharts ComposedChart) */}
       <section className="mx-5 mb-5 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#161922] p-5 space-y-5">

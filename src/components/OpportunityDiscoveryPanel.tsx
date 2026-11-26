@@ -9,6 +9,9 @@ import {
   ExternalLink,
   SlidersHorizontal,
   ArrowUpRight,
+  Crosshair,
+  Plus,
+  X,
 } from "lucide-react";
 import type {
   ClipItem,
@@ -26,6 +29,12 @@ interface OpportunityDiscoveryPanelProps {
   onRunDiscovery: (payload: {
     niche: ContentNiche | "all";
     freshness: OpportunityGapFreshness;
+    customQuery?: string;
+  }) => Promise<void>;
+  onRunCompetitorGapScan?: (payload: {
+    niche: ContentNiche | "all";
+    freshness: OpportunityGapFreshness;
+    competitorChannels: string[];
     customQuery?: string;
   }) => Promise<void>;
   onCreateClipFromTopic: (topic: OpportunityGapTopic) => Promise<void>;
@@ -70,6 +79,7 @@ export function OpportunityDiscoveryPanel({
   discovery,
   isDiscovering,
   onRunDiscovery,
+  onRunCompetitorGapScan,
   onCreateClipFromTopic,
   onSaveTopicToResearch,
   onOpenClipInStudio,
@@ -80,14 +90,20 @@ export function OpportunityDiscoveryPanel({
   const [freshness, setFreshness] = useState<OpportunityGapFreshness>(
     discovery?.freshness || "7d"
   );
+  const [gapFilter, setGapFilter] = useState<"all" | "library-gap" | "competitor-gap">("all");
   const [customQuery, setCustomQuery] = useState(discovery?.customQuery || "");
+  const [competitorChannels, setCompetitorChannels] = useState<string[]>(
+    discovery?.competitorChannelsAudited && discovery.competitorChannelsAudited.length > 0
+      ? discovery.competitorChannelsAudited
+      : ["@Fireship", "@MKBHD", "@TheAIAdvantage", "@GrahamStephan", "@AliAbdaal"]
+  );
+  const [newChannelInput, setNewChannelInput] = useState("");
   const [velocityFilter, setVelocityFilter] = useState<"all" | "exploding" | "rising">("all");
   const [hideCovered, setHideCovered] = useState(false);
   const [filterText, setFilterText] = useState("");
   const [creatingId, setCreatingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // Live audit of current clip library footprint for the selected niche
   const libraryAudit = useMemo(() => {
     const scopedClips =
       selectedNiche === "all"
@@ -109,7 +125,6 @@ export function OpportunityDiscoveryPanel({
     };
   }, [clips, selectedNiche]);
 
-  // Evaluate each discovered topic against the LIVE clip library so gaps flip to "Covered" immediately when built
   const auditedTopics = useMemo(() => {
     const raw = discovery?.topics || [];
     return raw.map((topic) => {
@@ -138,6 +153,7 @@ export function OpportunityDiscoveryPanel({
 
       return {
         ...topic,
+        resolvedGapType: topic.gapType || "library-gap",
         liveCoveredClip: matchedClip,
         liveNoveltyPct,
       };
@@ -147,6 +163,7 @@ export function OpportunityDiscoveryPanel({
   const filteredTopics = useMemo(() => {
     const q = filterText.trim().toLowerCase();
     return auditedTopics.filter((item) => {
+      if (gapFilter !== "all" && item.resolvedGapType !== gapFilter) return false;
       if (selectedNiche !== "all" && item.niche !== selectedNiche) return false;
       if (velocityFilter !== "all" && item.demandVelocity !== velocityFilter) return false;
       if (hideCovered && item.liveCoveredClip) return false;
@@ -154,11 +171,17 @@ export function OpportunityDiscoveryPanel({
       return (
         item.topic.toLowerCase().includes(q) ||
         item.subCategory.toLowerCase().includes(q) ||
+        (item.competitorChannel || "").toLowerCase().includes(q) ||
         item.searchTrendSignal.toLowerCase().includes(q) ||
         item.suggestedHook.toLowerCase().includes(q)
       );
     });
-  }, [auditedTopics, selectedNiche, velocityFilter, hideCovered, filterText]);
+  }, [auditedTopics, gapFilter, selectedNiche, velocityFilter, hideCovered, filterText]);
+
+  const competitorGapCount = useMemo(
+    () => auditedTopics.filter((t) => t.resolvedGapType === "competitor-gap").length,
+    [auditedTopics]
+  );
 
   const uncoveredCount = useMemo(
     () => auditedTopics.filter((t) => !t.liveCoveredClip).length,
@@ -180,9 +203,28 @@ export function OpportunityDiscoveryPanel({
     );
   }, [auditedTopics]);
 
+  function handleAddCompetitorChannel() {
+    const raw = newChannelInput.trim();
+    if (!raw) return;
+    const handle = raw.startsWith("@") ? raw : `@${raw.replace(/\s+/g, "")}`;
+    if (!competitorChannels.some((c) => c.toLowerCase() === handle.toLowerCase())) {
+      setCompetitorChannels((prev) => [...prev, handle].slice(0, 8));
+    }
+    setNewChannelInput("");
+  }
+
   async function handleSubmitScan(e: React.FormEvent) {
     e.preventDefault();
     if (isDiscovering) return;
+    if (gapFilter === "competitor-gap" && onRunCompetitorGapScan) {
+      await onRunCompetitorGapScan({
+        niche: selectedNiche,
+        freshness,
+        competitorChannels,
+        customQuery: customQuery.trim() || undefined,
+      });
+      return;
+    }
     await onRunDiscovery({
       niche: selectedNiche,
       freshness,
@@ -191,55 +233,82 @@ export function OpportunityDiscoveryPanel({
   }
 
   return (
-    <div className="flex-1 bg-[#F6F7F9] dark:bg-[#0A0B0E] p-4 sm:p-6 space-y-5 overflow-y-auto">
-      {/* Command & Google Search Query Panel */}
-      <section className="p-5 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-          <div className="space-y-1">
+    <div className="flex-1 bg-[#F4F6F9] dark:bg-[#0A0B0E] p-4 sm:p-5 space-y-4 overflow-y-auto">
+      {/* Top Studio Control Deck */}
+      <section className="p-4 sm:p-5 rounded-sm border border-[#D4DAE4] dark:border-[#1E222D] bg-white dark:bg-[#111318] space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="space-y-0.5">
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <span>Ingest</span>
-              <span aria-hidden="true">/</span>
-              <span>Opportunity Discovery</span>
-              <span aria-hidden="true">·</span>
               <span>Google Search Grounding</span>
-              {discovery?.lastScannedAt && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="font-mono tabular-nums">
-                    Updated {new Date(discovery.lastScannedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </>
-              )}
+              <span aria-hidden="true">·</span>
+              <span className="font-mono tabular-nums">
+                {libraryAudit.totalLibraryClips} clips audited
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="font-mono tabular-nums">
+                {competitorChannels.length} rival channels tracked
+              </span>
             </div>
-            <h2 className="font-display text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F1F5F9]">
-              Uncovered Niche Opportunity Discovery
+            <h2 className="font-display text-base font-bold text-[#0F172A] dark:text-[#F8FAFC]">
+              Opportunity Discovery &amp; Competitor Gap Scanner
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-3xl">
-              Audits your existing clip library ({libraryAudit.totalLibraryClips} clips) and queries live Google Search to surface high-performing topics in your niche that you have not covered yet.
-            </p>
           </div>
 
-          <div className="inline-flex items-center p-0.5 rounded-sm bg-[#ECEFF3] dark:bg-[#171A21] border border-[#D9DEE7] dark:border-[#262B37] text-xs shrink-0 self-start">
-            {(
-              [
-                { id: "24h", label: "Last 24h" },
-                { id: "7d", label: "Last 7 Days" },
-                { id: "30d", label: "Last 30 Days" },
-              ] as const
-            ).map((windowOpt) => (
-              <button
-                key={windowOpt.id}
-                type="button"
-                onClick={() => setFreshness(windowOpt.id)}
-                className={`px-2.5 py-1.5 rounded-xs font-medium transition-colors whitespace-nowrap ${
-                  freshness === windowOpt.id
-                    ? "bg-white dark:bg-[#111318] text-[#0F172A] dark:text-white"
-                    : "text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white"
-                }`}
-              >
-                {windowOpt.label}
-              </button>
-            ))}
+          {/* Primary Mode / Gap Filter Switcher */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center p-0.5 rounded-xs bg-[#ECEFF4] dark:bg-[#161922] border border-[#D4DAE4] dark:border-[#232836] text-xs">
+              {(
+                [
+                  { id: "all", label: `All Gaps (${auditedTopics.length})` },
+                  {
+                    id: "library-gap",
+                    label: `Library Gaps (${auditedTopics.length - competitorGapCount})`,
+                  },
+                  {
+                    id: "competitor-gap",
+                    label: `Competitor Gap (${competitorGapCount})`,
+                  },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setGapFilter(opt.id)}
+                  className={`px-2.5 py-1 rounded-xs font-medium transition-colors whitespace-nowrap ${
+                    gapFilter === opt.id
+                      ? opt.id === "competitor-gap"
+                        ? "bg-[#E1392B] text-white"
+                        : "bg-[#0F172A] dark:bg-[#F8FAFC] text-white dark:text-[#0F172A]"
+                      : "text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="inline-flex items-center p-0.5 rounded-xs bg-[#ECEFF4] dark:bg-[#161922] border border-[#D4DAE4] dark:border-[#232836] text-xs">
+              {(
+                [
+                  { id: "24h", label: "24h" },
+                  { id: "7d", label: "7d" },
+                  { id: "30d", label: "30d" },
+                ] as const
+              ).map((windowOpt) => (
+                <button
+                  key={windowOpt.id}
+                  type="button"
+                  onClick={() => setFreshness(windowOpt.id)}
+                  className={`px-2 py-1 rounded-xs font-mono font-medium transition-colors whitespace-nowrap ${
+                    freshness === windowOpt.id
+                      ? "bg-white dark:bg-[#111318] text-[#0F172A] dark:text-white"
+                      : "text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white"
+                  }`}
+                >
+                  {windowOpt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -250,10 +319,10 @@ export function OpportunityDiscoveryPanel({
               key={opt.id}
               type="button"
               onClick={() => setSelectedNiche(opt.id)}
-              className={`px-3 py-1.5 rounded-xs text-xs font-medium transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors whitespace-nowrap ${
                 selectedNiche === opt.id
-                  ? "bg-[#0F172A] dark:bg-[#F1F5F9] text-white dark:text-[#0F172A]"
-                  : "bg-[#F6F7F9] dark:bg-[#161922] text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white border border-[#D9DEE7] dark:border-[#262B37]"
+                  ? "bg-[#0F172A] dark:bg-[#F8FAFC] text-white dark:text-[#0F172A]"
+                  : "bg-[#F4F6F9] dark:bg-[#161922] text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white border border-[#D4DAE4] dark:border-[#232836]"
               }`}
             >
               {opt.label}
@@ -261,93 +330,148 @@ export function OpportunityDiscoveryPanel({
           ))}
         </div>
 
-        {/* Search Form */}
-        <form onSubmit={handleSubmitScan} className="flex flex-col sm:flex-row gap-2.5">
+        {/* Competitor Channel Watchlist Bar (Visible whenever Competitor Gap is active or user wants to manage rivals) */}
+        <div className="p-3 rounded-xs border border-[#D4DAE4] dark:border-[#232836] bg-[#F8F9FB] dark:bg-[#0D0F14] flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="inline-flex items-center gap-1.5 font-medium text-[#0F172A] dark:text-slate-200 whitespace-nowrap">
+              <Crosshair className="w-3.5 h-3.5 text-[#E1392B]" />
+              <span>Competitor Channels:</span>
+            </span>
+            {competitorChannels.map((ch) => (
+              <span
+                key={ch}
+                className="inline-flex items-center gap-1 font-mono text-[11px] text-slate-700 dark:text-slate-300"
+              >
+                <span>{ch}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${ch}`}
+                  onClick={() => setCompetitorChannels((prev) => prev.filter((x) => x !== ch))}
+                  className="text-slate-400 hover:text-[#E1392B]"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <input
+              type="text"
+              value={newChannelInput}
+              onChange={(e) => setNewChannelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddCompetitorChannel();
+                }
+              }}
+              placeholder="@AddRivalChannel"
+              className="h-7 w-36 px-2 rounded-xs border border-[#D4DAE4] dark:border-[#232836] bg-white dark:bg-[#111318] font-mono text-[11px]"
+            />
+            <button
+              type="button"
+              onClick={handleAddCompetitorChannel}
+              className="h-7 px-2 rounded-xs border border-[#D4DAE4] dark:border-[#232836] bg-white dark:bg-[#111318] hover:border-[#0F172A] dark:hover:border-slate-500 inline-flex items-center gap-1 text-[11px] font-medium"
+            >
+              <Plus className="w-3 h-3" />
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Query Bar & Dual Scan Triggers */}
+        <form onSubmit={handleSubmitScan} className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={customQuery}
               onChange={(e) => setCustomQuery(e.target.value)}
-              placeholder="Optional angle or sub-niche focus (e.g., open-source AI agents, indie game launches, Q4 CPM shifts)..."
-              className="w-full h-10 pl-9 pr-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#0A0B0E] text-xs text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-slate-400 focus:outline-none focus:border-[#E1392B]"
+              placeholder="Optional sub-niche focus (e.g., affiliate bridge funnels, local AI agents, Steam indie demos)..."
+              className="w-full h-9 pl-9 pr-3 rounded-xs border border-[#D4DAE4] dark:border-[#232836] bg-[#F4F6F9] dark:bg-[#0A0B0E] text-xs text-[#0F172A] dark:text-[#F8FAFC] placeholder:text-slate-400"
             />
           </div>
+
           <button
-            type="submit"
+            type="button"
             disabled={isDiscovering}
-            className="h-10 px-4 rounded-sm bg-[#E1392B] hover:bg-[#c83024] disabled:opacity-60 text-white text-xs font-semibold inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0 transition-colors"
+            onClick={() =>
+              onRunDiscovery({
+                niche: selectedNiche,
+                freshness,
+                customQuery: customQuery.trim() || undefined,
+              })
+            }
+            className="h-9 px-3.5 rounded-xs border border-[#D4DAE4] dark:border-[#232836] bg-white dark:bg-[#161922] hover:border-[#0F172A] dark:hover:border-slate-500 disabled:opacity-60 text-xs font-semibold text-[#0F172A] dark:text-slate-100 inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
           >
-            {isDiscovering ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Globe className="w-3.5 h-3.5" />
-            )}
-            <span>{isDiscovering ? "Searching Live Web..." : "Scan Uncovered Topics"}</span>
+            {isDiscovering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+            <span>Scan Library Gaps</span>
           </button>
+
+          {onRunCompetitorGapScan && (
+            <button
+              type="button"
+              disabled={isDiscovering}
+              onClick={async () => {
+                setGapFilter("competitor-gap");
+                await onRunCompetitorGapScan({
+                  niche: selectedNiche,
+                  freshness,
+                  competitorChannels,
+                  customQuery: customQuery.trim() || undefined,
+                });
+              }}
+              className="h-9 px-4 rounded-xs bg-[#E1392B] hover:bg-[#c83024] disabled:opacity-60 text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+            >
+              {isDiscovering ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Crosshair className="w-3.5 h-3.5" />
+              )}
+              <span>Scan Competitor Gaps &amp; Draft Cards</span>
+            </button>
+          )}
         </form>
 
-        {/* 4-Column Library Gap Audit Strip */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-[#D9DEE7] dark:border-[#222631] pt-4 gap-4">
-          <div className="space-y-0.5">
-            <div className="text-[11px] text-slate-500">Clips Audited in Scope</div>
-            <div className="font-mono text-lg font-bold tabular-nums text-[#0F172A] dark:text-[#F1F5F9]">
-              {libraryAudit.scopedClipCount}
-              <span className="text-xs font-normal text-slate-500"> / {libraryAudit.totalLibraryClips} total</span>
+        {/* Compact 4-Metric Audit Strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-[#D4DAE4] dark:border-[#1E222D] pt-3 gap-4">
+          <div>
+            <div className="text-[11px] text-slate-500">Library Audited</div>
+            <div className="font-mono text-base font-bold tabular-nums text-[#0F172A] dark:text-[#F8FAFC]">
+              {libraryAudit.scopedClipCount} / {libraryAudit.totalLibraryClips} clips
             </div>
           </div>
-
-          <div className="space-y-0.5">
-            <div className="text-[11px] text-slate-500">Uncovered Gaps Found</div>
-            <div className="font-mono text-lg font-bold tabular-nums text-[#E1392B]">
-              {uncoveredCount}
-              <span className="text-xs font-normal text-slate-500"> / {auditedTopics.length} topics</span>
+          <div>
+            <div className="text-[11px] text-slate-500">Uncovered Whitespace</div>
+            <div className="font-mono text-base font-bold tabular-nums text-[#E1392B]">
+              {uncoveredCount} topics ({competitorGapCount} rival blindspots)
             </div>
           </div>
-
-          <div className="space-y-0.5">
-            <div className="text-[11px] text-slate-500">Avg. Library Novelty</div>
-            <div className="font-mono text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-              {avgNovelty}%
-              <span className="text-xs font-normal text-slate-500"> whitespace</span>
+          <div>
+            <div className="text-[11px] text-slate-500">Avg. Novelty Score</div>
+            <div className="font-mono text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+              {avgNovelty}% uncovered
             </div>
           </div>
-
-          <div className="space-y-0.5">
-            <div className="text-[11px] text-slate-500">Avg. Est. Niche RPM</div>
-            <div className="font-mono text-lg font-bold tabular-nums text-[#0F172A] dark:text-[#F1F5F9]">
-              ${avgEstRpm.toFixed(2)}
-              <span className="text-xs font-normal text-slate-500"> / 1K views</span>
+          <div>
+            <div className="text-[11px] text-slate-500">Avg. Est. RPM</div>
+            <div className="font-mono text-base font-bold tabular-nums text-[#0F172A] dark:text-[#F8FAFC]">
+              ${avgEstRpm.toFixed(2)} / 1K
             </div>
           </div>
         </div>
-
-        {/* Covered Library Footprint Exclusion Reference */}
-        {libraryAudit.coveredKeywords.length > 0 && (
-          <div className="pt-3 border-t border-[#D9DEE7] dark:border-[#222631] flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="font-medium text-[#0F172A] dark:text-slate-200">
-              Excluded from search (already in library):
-            </span>
-            <span>{libraryAudit.coveredKeywords.slice(0, 10).join(" · ")}</span>
-          </div>
-        )}
       </section>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Compact Secondary Filter Row */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center p-0.5 rounded-sm bg-white dark:bg-[#111318] border border-[#D9DEE7] dark:border-[#222631] text-xs">
+          <div className="inline-flex items-center p-0.5 rounded-xs bg-white dark:bg-[#111318] border border-[#D4DAE4] dark:border-[#1E222D] text-xs">
             {(
               [
-                { id: "all", label: `All Gaps (${auditedTopics.length})` },
-                {
-                  id: "exploding",
-                  label: `Exploding (${auditedTopics.filter((t) => t.demandVelocity === "exploding").length})`,
-                },
-                {
-                  id: "rising",
-                  label: `Rising (${auditedTopics.filter((t) => t.demandVelocity === "rising").length})`,
-                },
+                { id: "all", label: "All Velocity" },
+                { id: "exploding", label: "Exploding" },
+                { id: "rising", label: "Rising" },
               ] as const
             ).map((opt) => (
               <button
@@ -356,7 +480,7 @@ export function OpportunityDiscoveryPanel({
                 onClick={() => setVelocityFilter(opt.id)}
                 className={`px-2.5 py-1 rounded-xs font-medium transition-colors whitespace-nowrap ${
                   velocityFilter === opt.id
-                    ? "bg-[#0F172A] dark:bg-[#F1F5F9] text-white dark:text-[#0F172A]"
+                    ? "bg-[#0F172A] dark:bg-[#F8FAFC] text-white dark:text-[#0F172A]"
                     : "text-slate-600 dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white"
                 }`}
               >
@@ -365,14 +489,14 @@ export function OpportunityDiscoveryPanel({
             ))}
           </div>
 
-          <label className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+          <label className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-xs border border-[#D4DAE4] dark:border-[#1E222D] bg-white dark:bg-[#111318] text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={hideCovered}
               onChange={(e) => setHideCovered(e.target.checked)}
               className="accent-[#E1392B]"
             />
-            <span>Hide already-covered</span>
+            <span>Hide covered</span>
           </label>
         </div>
 
@@ -382,72 +506,55 @@ export function OpportunityDiscoveryPanel({
             type="text"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filter discovered topics..."
-            className="w-full h-8 pl-8 pr-3 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] text-xs text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-slate-400 focus:outline-none focus:border-[#E1392B]"
+            placeholder="Filter topics or rival channel..."
+            className="w-full h-8 pl-8 pr-3 rounded-xs border border-[#D4DAE4] dark:border-[#1E222D] bg-white dark:bg-[#111318] text-xs"
           />
         </div>
       </div>
 
-      {/* Loading Skeleton or Results Grid */}
+      {/* Results Grid */}
       {isDiscovering ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
           {[0, 1, 2, 3].map((idx) => (
             <div
               key={idx}
-              className="p-5 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] space-y-3"
+              className="p-4 rounded-sm border border-[#D4DAE4] dark:border-[#1E222D] bg-white dark:bg-[#111318] space-y-3"
             >
               <div className="h-3 w-48 bg-slate-200 dark:bg-slate-800 rounded-xs" />
               <div className="h-5 w-4/5 bg-slate-200 dark:bg-slate-800 rounded-xs" />
               <div className="h-3 w-full bg-slate-100 dark:bg-slate-800/70 rounded-xs" />
-              <div className="h-3 w-3/4 bg-slate-100 dark:bg-slate-800/70 rounded-xs" />
-              <div className="pt-2 flex gap-2">
-                <div className="h-8 w-36 bg-slate-200 dark:bg-slate-800 rounded-xs" />
-                <div className="h-8 w-32 bg-slate-100 dark:bg-slate-800/70 rounded-xs" />
-              </div>
+              <div className="h-8 w-44 bg-slate-200 dark:bg-slate-800 rounded-xs" />
             </div>
           ))}
         </div>
       ) : filteredTopics.length === 0 ? (
-        <div className="p-10 rounded-sm border border-dashed border-[#D9DEE7] dark:border-[#262B37] bg-white dark:bg-[#111318] text-center space-y-3">
-          <div className="font-display text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
-            No uncovered topics match the current filter
+        <div className="p-8 rounded-sm border border-dashed border-[#D4DAE4] dark:border-[#232836] bg-white dark:bg-[#111318] text-center space-y-3">
+          <div className="font-display text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC]">
+            No gap topics match this filter
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Switch niche filters or run a fresh Google Search scan to discover new high-performing topics outside your current clip library.
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Run a Library Gap or Competitor Gap scan to discover uncovered high-RPM angles via live Google Search.
           </p>
-          <button
-            type="button"
-            onClick={() =>
-              onRunDiscovery({
-                niche: selectedNiche,
-                freshness,
-                customQuery: customQuery.trim() || undefined,
-              })
-            }
-            className="h-9 px-4 rounded-sm bg-[#E1392B] hover:bg-[#c83024] text-white text-xs font-semibold inline-flex items-center gap-1.5"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Scan Uncovered Topics Now</span>
-          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
           {filteredTopics.map((item) => {
             const isCovered = Boolean(item.liveCoveredClip);
+            const isCompGap = item.resolvedGapType === "competitor-gap";
             return (
               <article
                 key={item.id}
-                className="p-5 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] flex flex-col justify-between gap-4"
+                className="p-4 rounded-sm border border-[#D4DAE4] dark:border-[#1E222D] bg-white dark:bg-[#111318] flex flex-col justify-between gap-3.5"
               >
-                <div className="space-y-3">
-                  {/* Quiet Unboxed Metadata Kicker */}
+                <div className="space-y-2.5">
+                  {/* Unboxed Metadata Line */}
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
                     <div className="flex flex-wrap items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                      <span className="font-medium text-[#0F172A] dark:text-slate-200">
+                      <span className="font-semibold text-[#0F172A] dark:text-slate-200">
                         {NICHE_LABELS[item.niche]}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span>{item.subCategory}</span>
+                      <span>{isCompGap ? `Competitor Gap (${item.competitorChannel || "Rivals"})` : item.subCategory}</span>
                       <span aria-hidden="true">·</span>
                       <span
                         className={
@@ -461,7 +568,7 @@ export function OpportunityDiscoveryPanel({
                     </div>
 
                     <div className="flex items-center gap-2 font-mono tabular-nums">
-                      <span className="text-[#0F172A] dark:text-slate-200 font-semibold">
+                      <span className="font-semibold text-[#0F172A] dark:text-slate-100">
                         ${item.estimatedRpmUsd.toFixed(2)} RPM
                       </span>
                       <span aria-hidden="true" className="text-slate-400">
@@ -474,59 +581,57 @@ export function OpportunityDiscoveryPanel({
                             : "text-emerald-600 dark:text-emerald-400 font-semibold"
                         }
                       >
-                        {isCovered ? "Covered in Library" : `${item.liveNoveltyPct}% Uncovered`}
+                        {isCovered ? "Covered" : `${item.liveNoveltyPct}% Gap`}
                       </span>
                     </div>
                   </div>
 
-                  {/* Topic Headline */}
-                  <h3 className="font-display text-sm font-bold leading-snug text-[#0F172A] dark:text-[#F1F5F9]">
+                  {/* Headline */}
+                  <h3 className="font-display text-sm font-bold leading-snug text-[#0F172A] dark:text-[#F8FAFC]">
                     {item.topic}
                   </h3>
 
-                  {/* Search Signal & Library Gap Reason */}
-                  <div className="space-y-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                  {/* Competitor Blindspot / Signal */}
+                  <div className="space-y-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    {isCompGap && item.competitorBlindspot && (
+                      <p>
+                        <span className="font-semibold text-[#E1392B]">Competitor blindspot: </span>
+                        {item.competitorBlindspot}
+                      </p>
+                    )}
                     <p>
-                      <span className="font-medium text-[#0F172A] dark:text-slate-100">
-                        Search signal:{" "}
-                      </span>
+                      <span className="font-medium text-[#0F172A] dark:text-slate-100">Signal: </span>
                       {item.searchTrendSignal}
-                    </p>
-                    <p>
-                      <span className="font-medium text-[#0F172A] dark:text-slate-100">
-                        Library gap:{" "}
-                      </span>
-                      {item.whyUncovered}
                     </p>
                   </div>
 
-                  {/* Opening Hook & Format Detail */}
-                  <div className="pt-3 border-t border-[#D9DEE7] dark:border-[#222631] space-y-1.5 text-xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
-                      <span>Suggested 3-second hook</span>
+                  {/* Hook & Format */}
+                  <div className="pt-2.5 border-t border-[#D4DAE4] dark:border-[#1E222D] space-y-1 text-xs">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>3-second opening hook</span>
                       <span className="font-mono">{FORMAT_LABELS[item.recommendedFormat]}</span>
                     </div>
                     <p className="font-medium text-[#0F172A] dark:text-slate-100">
                       &ldquo;{item.suggestedHook}&rdquo;
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {item.angleBrief}
-                    </p>
                   </div>
 
-                  {/* Closest Clip Audit & Source Link */}
+                  {/* Audit & Source Footer */}
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
-                    {isCovered && item.liveCoveredClip ? (
+                    {item.autoDraftedToOpportunities ? (
                       <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Covered by: {item.liveCoveredClip.title}</span>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Auto-drafted to Opportunity cards</span>
                       </span>
-                    ) : item.closestLibraryClipTitle ? (
-                      <span className="truncate max-w-full">
-                        Checked against: {item.closestLibraryClipTitle}
+                    ) : isCovered && item.liveCoveredClip ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Covered by {item.liveCoveredClip.title}</span>
                       </span>
                     ) : (
-                      <span>Verified unique vs. library</span>
+                      <span className="truncate max-w-[260px]">
+                        Verified unique vs. {item.closestLibraryClipTitle || "library"}
+                      </span>
                     )}
 
                     {item.sourceUrl && (
@@ -536,23 +641,23 @@ export function OpportunityDiscoveryPanel({
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-[#2563EB] dark:text-sky-400 hover:underline shrink-0"
                       >
-                        <span className="truncate max-w-[180px]">{item.sourceTitle || "Google Source"}</span>
+                        <span className="truncate max-w-[160px]">{item.sourceTitle || "Source"}</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
                 </div>
 
-                {/* Working Production Actions */}
-                <div className="pt-3 border-t border-[#D9DEE7] dark:border-[#222631] flex flex-wrap items-center gap-2">
+                {/* Action Row */}
+                <div className="pt-2.5 border-t border-[#D4DAE4] dark:border-[#1E222D] flex flex-wrap items-center gap-2">
                   {isCovered && item.liveCoveredClip ? (
                     <button
                       type="button"
                       onClick={() => onOpenClipInStudio(item.liveCoveredClip!.id)}
-                      className="h-9 px-3.5 rounded-sm bg-[#0F172A] dark:bg-[#F1F5F9] text-white dark:text-[#0F172A] text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
+                      className="h-8 px-3 rounded-xs bg-[#0F172A] dark:bg-[#F8FAFC] text-white dark:text-[#0F172A] text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
                     >
                       <ArrowUpRight className="w-3.5 h-3.5" />
-                      <span>Open Covered Clip in Studio</span>
+                      <span>Open in Studio</span>
                     </button>
                   ) : (
                     <button
@@ -566,16 +671,14 @@ export function OpportunityDiscoveryPanel({
                           setCreatingId(null);
                         }
                       }}
-                      className="h-9 px-3.5 rounded-sm bg-[#E1392B] hover:bg-[#c83024] disabled:opacity-60 text-white text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap transition-colors"
+                      className="h-8 px-3 rounded-xs bg-[#E1392B] hover:bg-[#c83024] disabled:opacity-60 text-white text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
                     >
                       {creatingId === item.id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <Clapperboard className="w-3.5 h-3.5" />
                       )}
-                      <span>
-                        {creatingId === item.id ? "Creating Draft..." : "Create Clip Draft"}
-                      </span>
+                      <span>{creatingId === item.id ? "Creating..." : "Create Clip Draft"}</span>
                     </button>
                   )}
 
@@ -590,7 +693,7 @@ export function OpportunityDiscoveryPanel({
                         setSavingId(null);
                       }
                     }}
-                    className="h-9 px-3 rounded-sm border border-[#D9DEE7] dark:border-[#262B37] bg-[#F6F7F9] dark:bg-[#161922] hover:border-[#0F172A] dark:hover:border-slate-500 disabled:opacity-60 text-xs font-medium text-[#0F172A] dark:text-slate-200 inline-flex items-center gap-1.5 whitespace-nowrap transition-colors"
+                    className="h-8 px-3 rounded-xs border border-[#D4DAE4] dark:border-[#232836] bg-[#F4F6F9] dark:bg-[#161922] disabled:opacity-60 text-xs font-medium text-[#0F172A] dark:text-slate-200 inline-flex items-center gap-1.5 whitespace-nowrap"
                   >
                     {savingId === item.id ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -599,7 +702,7 @@ export function OpportunityDiscoveryPanel({
                     ) : (
                       <BookmarkPlus className="w-3.5 h-3.5" />
                     )}
-                    <span>{item.savedToResearch ? "Saved to Research" : "Save to Research Queue"}</span>
+                    <span>{item.savedToResearch ? "In Opportunity Queue" : "Draft Opportunity Card"}</span>
                   </button>
                 </div>
               </article>
@@ -608,41 +711,24 @@ export function OpportunityDiscoveryPanel({
         </div>
       )}
 
-      {/* Grounded Google Search Queries & Citations */}
-      {discovery && (discovery.sources.length > 0 || discovery.searchQueries.length > 0) && (
-        <section className="p-4 rounded-sm border border-[#D9DEE7] dark:border-[#222631] bg-white dark:bg-[#111318] space-y-2.5 text-xs">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="font-display font-bold text-[#0F172A] dark:text-[#F1F5F9]">
-              Google Search Grounding Citations ({discovery.sources.length})
-            </span>
-            <span className="font-mono text-[11px] text-slate-500">
-              Model: {discovery.modelUsed}
-            </span>
-          </div>
-
-          {discovery.searchQueries.length > 0 && (
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="font-medium text-[#0F172A] dark:text-slate-200">Queries executed: </span>
-              {discovery.searchQueries.join(" · ")}
-            </div>
-          )}
-
-          {discovery.sources.length > 0 && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1">
-              {discovery.sources.map((src) => (
-                <a
-                  key={src.uri}
-                  href={src.uri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] text-[#2563EB] dark:text-sky-400 hover:underline"
-                >
-                  <span className="truncate max-w-[260px]">{src.title}</span>
-                  <ExternalLink className="w-3 h-3 shrink-0" />
-                </a>
-              ))}
-            </div>
-          )}
+      {/* Grounding Sources */}
+      {discovery && discovery.sources.length > 0 && (
+        <section className="p-3.5 rounded-sm border border-[#D4DAE4] dark:border-[#1E222D] bg-white dark:bg-[#111318] flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+          <span className="font-semibold text-[#0F172A] dark:text-slate-200">
+            Google Search Sources ({discovery.sources.length}):
+          </span>
+          {discovery.sources.map((src) => (
+            <a
+              key={src.uri}
+              href={src.uri}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[#2563EB] dark:text-sky-400 hover:underline"
+            >
+              <span className="truncate max-w-[220px]">{src.title}</span>
+              <ExternalLink className="w-3 h-3 shrink-0" />
+            </a>
+          ))}
         </section>
       )}
     </div>

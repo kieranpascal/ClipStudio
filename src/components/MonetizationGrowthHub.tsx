@@ -31,18 +31,25 @@ import {
   Legend,
 } from "recharts";
 import type {
+  AffiliateOfferLink,
+  ClipItem,
   ContentNiche,
   CtaPlacementType,
+  EmailCaptureLandingPage,
   KnowledgeAcquisitionState,
   LearningDiscoveryType,
+  LongFormGraduationItem,
   MonetizationPlan,
   MonetizationStream,
+  RemoteBridgeConfig,
+  RemoteMessagingPlatform,
   SelfLearningCadence,
   SelfLearningState,
   SponsorDeal,
 } from "../types";
 import { formatCompactNumber } from "../utils/ffmpeg";
 import { AbFunnelTestPanel } from "./AbFunnelTestPanel";
+import { RevenueFunnelEngine } from "./RevenueFunnelEngine";
 
 interface MonetizationGrowthHubProps {
   monetizationPlan?: MonetizationPlan;
@@ -83,6 +90,31 @@ interface MonetizationGrowthHubProps {
   onAdoptDiscovery: (discoveryId: string) => Promise<void>;
   onRunKnowledgeCrawl?: (customTopic?: string) => Promise<void>;
   onOpenIngestOpportunities?: () => void;
+  clips?: ClipItem[];
+  affiliateOffers?: AffiliateOfferLink[];
+  emailLandingPages?: EmailCaptureLandingPage[];
+  longFormPipeline?: LongFormGraduationItem[];
+  remoteBridge?: RemoteBridgeConfig;
+  onAddAffiliateOffer?: (payload: {
+    partnerName: string;
+    niche: ContentNiche;
+    offerHook: string;
+    destinationUrl: string;
+    commissionPct: number;
+    estEpcUsd: number;
+  }) => Promise<void>;
+  onDeleteAffiliateOffer?: (id: string) => Promise<void>;
+  onAddLandingPage?: (payload: {
+    headline: string;
+    leadMagnetTitle: string;
+    subheadline: string;
+    ctaButtonText: string;
+    linkedAffiliateId?: string;
+    niche: ContentNiche;
+  }) => Promise<void>;
+  onGraduateToLongForm?: (clipId: string) => Promise<void>;
+  onUpdateRemoteBridge?: (patch: Partial<RemoteBridgeConfig>) => Promise<void>;
+  onRunRemoteCommand?: (platform: RemoteMessagingPlatform, command: string) => Promise<void>;
 }
 
 const CADENCE_OPTIONS: Array<{ id: SelfLearningCadence; label: string }> = [
@@ -122,6 +154,17 @@ export function MonetizationGrowthHub({
   onAdoptDiscovery,
   onRunKnowledgeCrawl,
   onOpenIngestOpportunities,
+  clips = [],
+  affiliateOffers = [],
+  emailLandingPages = [],
+  longFormPipeline = [],
+  remoteBridge,
+  onAddAffiliateOffer,
+  onDeleteAffiliateOffer,
+  onAddLandingPage,
+  onGraduateToLongForm,
+  onUpdateRemoteBridge,
+  onRunRemoteCommand,
 }: MonetizationGrowthHubProps) {
   const [discoveryFilter, setDiscoveryFilter] = useState<"all" | LearningDiscoveryType>("all");
   const [customResearchFocus, setCustomResearchFocus] = useState("");
@@ -469,6 +512,28 @@ export function MonetizationGrowthHub({
           onApplyFunnelWinner={onApplyFunnelWinner}
         />
       )}
+
+      {/* SECTION 0.75: AFFILIATE LINKS, EMAIL CAPTURE PAGES, SHORT -> LONG-FORM & DISCORD/TELEGRAM/WHATSAPP BRIDGE */}
+      {onAddAffiliateOffer &&
+        onDeleteAffiliateOffer &&
+        onAddLandingPage &&
+        onGraduateToLongForm &&
+        onUpdateRemoteBridge &&
+        onRunRemoteCommand && (
+          <RevenueFunnelEngine
+            clips={clips}
+            affiliateOffers={affiliateOffers}
+            emailLandingPages={emailLandingPages}
+            longFormPipeline={longFormPipeline}
+            remoteBridge={remoteBridge}
+            onAddAffiliateOffer={onAddAffiliateOffer}
+            onDeleteAffiliateOffer={onDeleteAffiliateOffer}
+            onAddLandingPage={onAddLandingPage}
+            onGraduateToLongForm={onGraduateToLongForm}
+            onUpdateRemoteBridge={onUpdateRemoteBridge}
+            onRunRemoteCommand={onRunRemoteCommand}
+          />
+        )}
 
       {/* RECURRING KNOWLEDGE ACQUISITION BRIDGE BANNER */}
       {knowledgeAcquisition && (

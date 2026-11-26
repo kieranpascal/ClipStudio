@@ -1,10 +1,12 @@
 export type WorkspaceTab =
+  | "dashboard"
   | "studio"
   | "ingest"
   | "vod"
   | "templates"
   | "assets"
   | "ai-lab"
+  | "monetization"
   | "distribution"
   | "autopilot"
   | "performance"
@@ -1163,12 +1165,17 @@ export interface AbTestAnalysisSnapshot {
 }
 
 export type OpportunityGapFreshness = "24h" | "7d" | "30d";
+export type OpportunityGapType = "library-gap" | "competitor-gap";
 
 export interface OpportunityGapTopic {
   id: string;
   topic: string;
   niche: ContentNiche;
   subCategory: string;
+  gapType?: OpportunityGapType;
+  competitorChannel?: string;
+  competitorBlindspot?: string;
+  autoDraftedToOpportunities?: boolean;
   demandVelocity: "exploding" | "rising" | "steady";
   searchTrendSignal: string;
   whyUncovered: string;
@@ -1189,6 +1196,8 @@ export interface OpportunityDiscoverySnapshot {
   lastScannedAt: string;
   focusNiche: ContentNiche | "all";
   freshness: OpportunityGapFreshness;
+  scanMode?: OpportunityGapType;
+  competitorChannelsAudited?: string[];
   customQuery?: string;
   modelUsed: string;
   libraryClipCountAudited: number;
@@ -1196,6 +1205,143 @@ export interface OpportunityDiscoverySnapshot {
   topics: OpportunityGapTopic[];
   sources: TrendPulseSource[];
   searchQueries: string[];
+}
+
+export interface CompetitiveNicheAlert {
+  id: string;
+  competitorChannel: string;
+  videoTitle: string;
+  videoUrl?: string;
+  niche: ContentNiche;
+  subNiche: string;
+  publishedAgoLabel: string;
+  observedViews: number;
+  monetizationGapReason: string;
+  estimatedUpsideRpmUsd: number;
+  rapidResponseAngle: string;
+  suggestedHook: string;
+  status: "active" | "mission-launched" | "dismissed";
+  detectedAt: string;
+  launchedMissionId?: string;
+}
+
+export interface AffiliateOfferLink {
+  id: string;
+  partnerName: string;
+  niche: ContentNiche;
+  offerHook: string;
+  destinationUrl: string;
+  utmCode: string;
+  commissionPct: number;
+  estEpcUsd: number; // Earnings per click
+  clicks30d: number;
+  conversions30d: number;
+  status: "active" | "testing" | "paused";
+}
+
+export interface EmailCaptureLandingPage {
+  id: string;
+  slug: string;
+  headline: string;
+  leadMagnetTitle: string;
+  subheadline: string;
+  ctaButtonText: string;
+  linkedAffiliateId?: string;
+  niche: ContentNiche;
+  visitors30d: number;
+  subscribers30d: number;
+  affiliateClicksFromEmail: number;
+  revenueAttributedUsd: number;
+  active: boolean;
+}
+
+export interface LongFormGraduationItem {
+  id: string;
+  sourceClipId?: string;
+  sourceShortTitle: string;
+  niche: ContentNiche;
+  shortViews: number;
+  shortWatchPct: number;
+  longFormTitle: string;
+  targetDurationMin: number;
+  estLongFormRpmUsd: number;
+  chapters: string[];
+  sponsorSlotNote: string;
+  status: "queued" | "scripting" | "in-production" | "published";
+  createdAt: string;
+}
+
+export type RemoteMessagingPlatform = "discord" | "telegram" | "whatsapp";
+
+export interface RemoteBridgeLogEntry {
+  id: string;
+  platform: RemoteMessagingPlatform;
+  direction: "inbound-command" | "outbound-alert";
+  commandOrEvent: string;
+  responseSummary: string;
+  status: "delivered" | "simulated-local" | "error";
+  timestamp: string;
+}
+
+export interface RemoteBridgeConfig {
+  discordEnabled: boolean;
+  telegramEnabled: boolean;
+  whatsappEnabled: boolean;
+  discordChannelName?: string;
+  alertOnMissionSuccess?: boolean;
+  alertOnRevenueSurge: boolean;
+  roiSurgeThresholdPct?: number;
+  alertOnCompetitorRelease: boolean;
+  alertOnSponsorBurnRate: boolean;
+  alertOnApprovalGates: boolean;
+  discordMentionMode?: "none" | "here" | "role";
+  discordMentionRole?: string;
+  discordRichEmbeds?: boolean;
+  dailyDigestTime: string;
+  envConfigured: {
+    discord: boolean;
+    telegram: boolean;
+    whatsapp: boolean;
+  };
+  commandHistory: RemoteBridgeLogEntry[];
+}
+
+export interface DeepResearchFinding {
+  id: string;
+  sourceChannel: "YouTube Comments" | "Reddit Threads" | "X / Twitter" | "TikTok Comments" | "Creator Newsletters";
+  painPoint: string;
+  viralHookAngle: string;
+  monetizationPath: string;
+  recommendedAffiliate: string;
+  emailLeadMagnet: string;
+  longFormExpansionTitle: string;
+  estRpmUsd: number;
+  confidenceScore: number;
+}
+
+export interface DeepResearchDossier {
+  id: string;
+  query: string;
+  niche: ContentNiche | "all";
+  executiveBrief: string;
+  generatedAt: string;
+  engine: "gemini-google-search" | "windows-pc-local";
+  findings: DeepResearchFinding[];
+  sources: TrendPulseSource[];
+}
+
+export interface AutonomousLearningEntry {
+  id: string;
+  cycleNumber: number;
+  executedAt: string;
+  engine: "gemini-cloud" | "windows-pc-local" | "hybrid-router";
+  focusArea: string;
+  observation: string;
+  experimentTested: string;
+  actionTaken: string;
+  projectedLiftPct: number;
+  autoApplied: boolean;
+  computeCostUsd: number;
 }
 
 export interface WorkspaceState {
@@ -1208,6 +1354,13 @@ export interface WorkspaceState {
   agentMessages?: AgentChatMessage[];
   researchOpportunities?: ResearchOpportunity[];
   opportunityDiscovery?: OpportunityDiscoverySnapshot;
+  competitiveAlerts?: CompetitiveNicheAlert[];
+  affiliateOffers?: AffiliateOfferLink[];
+  emailLandingPages?: EmailCaptureLandingPage[];
+  longFormPipeline?: LongFormGraduationItem[];
+  remoteBridge?: RemoteBridgeConfig;
+  deepResearch?: DeepResearchDossier;
+  autonomousLedger?: AutonomousLearningEntry[];
   trendPulse?: TrendPulseSnapshot;
   activeMission?: AutonomousMission;
   missionHistory?: AutonomousMission[];

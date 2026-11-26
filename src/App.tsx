@@ -27,6 +27,8 @@ import type {
   OpportunityGapFreshness,
   OpportunityGapTopic,
   PipelineConfig,
+  RemoteBridgeConfig,
+  RemoteMessagingPlatform,
   ResearchOpportunity,
   SelfLearningCadence,
   SocialPlatform,
@@ -41,6 +43,9 @@ import type {
   WorkspaceTab,
 } from "./types";
 import { TopBar } from "./components/TopBar";
+import { AppShellSidebar } from "./components/AppShellSidebar";
+import { StudioDashboardView } from "./components/StudioDashboardView";
+import { MonetizationHubView } from "./components/MonetizationHubView";
 import { IngestDeck } from "./components/IngestDeck";
 import { VerticalStudioView } from "./components/VerticalStudioView";
 import { VodHighlightsDeck } from "./components/VodHighlightsDeck";
@@ -65,7 +70,7 @@ interface Notice {
 export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("studio");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("dashboard");
   const [uiMode, setUiMode] = useState<UiMode>(() => {
     try {
       return localStorage.getItem("clipforge_ui_mode") === "easy" ? "easy" : "advanced";
@@ -75,6 +80,8 @@ export default function App() {
   });
   const [selectedClipId, setSelectedClipId] = useState<string>("");
   const [isDark, setIsDark] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -116,6 +123,8 @@ export default function App() {
   const [isApplyingFunnelWinner, setIsApplyingFunnelWinner] = useState(false);
   const [isScanningAlerts, setIsScanningAlerts] = useState(false);
   const [shiftingAlertId, setShiftingAlertId] = useState<string | null>(null);
+  const [isScanningCompetitiveAlerts, setIsScanningCompetitiveAlerts] = useState(false);
+  const [launchingCompetitiveAlertId, setLaunchingCompetitiveAlertId] = useState<string | null>(null);
   const [isRunningSelfLearn, setIsRunningSelfLearn] = useState(false);
   const [isCrawlingKnowledge, setIsCrawlingKnowledge] = useState(false);
   const [adoptingDiscoveryId, setAdoptingDiscoveryId] = useState<string | null>(null);
@@ -124,6 +133,9 @@ export default function App() {
   const [removingPlatform, setRemovingPlatform] = useState<SocialPlatform | null>(null);
   const [isAnalyzingAbTest, setIsAnalyzingAbTest] = useState(false);
   const [isBakingWinner, setIsBakingWinner] = useState(false);
+  const [isRunningDeepResearch, setIsRunningDeepResearch] = useState(false);
+  const [isRunningAutonomousLoop, setIsRunningAutonomousLoop] = useState(false);
+  const [isDispatchingDiscordAlert, setIsDispatchingDiscordAlert] = useState(false);
   const [autopilotSubTab, setAutopilotSubTab] = useState<
     "mission" | "monetization" | "expansion" | "agent" | "compute" | "voice"
   >("mission");
@@ -140,9 +152,19 @@ export default function App() {
     }
     if (
       nextMode === "easy" &&
-      !["studio", "ingest", "ai-lab", "performance", "autopilot", "distribution"].includes(activeTab)
+      ![
+        "dashboard",
+        "studio",
+        "ingest",
+        "ai-lab",
+        "monetization",
+        "performance",
+        "autopilot",
+        "distribution",
+        "guide",
+      ].includes(activeTab)
     ) {
-      setActiveTab("studio");
+      setActiveTab("dashboard");
     }
   }
 
@@ -218,15 +240,18 @@ export default function App() {
 
   const counts = useMemo(() => {
     const clips = workspace?.clips || [];
-    const activeAlerts = (workspace?.revenueAlerts || []).filter(
+    const activeRevenueAlerts = (workspace?.revenueAlerts || []).filter(
+      (a) => a.status === "active"
+    ).length;
+    const activeCompetitiveAlerts = (workspace?.competitiveAlerts || []).filter(
       (a) => a.status === "active"
     ).length;
     return {
       pendingQa: clips.filter((c) => c.qaStatus === "pending").length,
       readyToPublish: clips.filter((c) => c.publishStatus === "ready" || c.publishStatus === "scheduled").length,
-      activeAlerts,
+      activeAlerts: activeRevenueAlerts + activeCompetitiveAlerts,
     };
-  }, [workspace?.clips, workspace?.revenueAlerts]);
+  }, [workspace?.clips, workspace?.revenueAlerts, workspace?.competitiveAlerts]);
 
   async function handleScanRadar() {
     setIsScanning(true);
@@ -1999,6 +2024,395 @@ export default function App() {
     }
   }
 
+  async function handleRunCompetitorGapScan(payload: {
+    niche: ContentNiche | "all";
+    freshness: OpportunityGapFreshness;
+    competitorChannels: string[];
+    customQuery?: string;
+  }) {
+    setIsDiscoveringOpportunities(true);
+    try {
+      const res = await fetch("/api/ingest/opportunity-discovery/competitor-gap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Competitor Gap Google Search scan failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              opportunityDiscovery: data.opportunityDiscovery || prev.opportunityDiscovery,
+              researchOpportunities: data.researchOpportunities || prev.researchOpportunities,
+              computeRouting: data.computeRouting || prev.computeRouting,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Competitor Gap scan drafted ${data.draftedOpportunities?.length || 0} uncovered rival format(s) into Opportunity cards.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Competitor Gap scan failed.");
+    } finally {
+      setIsDiscoveringOpportunities(false);
+    }
+  }
+
+  async function handleScanCompetitiveAlerts(niche: ContentNiche | "all") {
+    setIsScanningCompetitiveAlerts(true);
+    try {
+      const res = await fetch("/api/performance/competitive-alerts/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ niche }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Competitive niche scan failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              competitiveAlerts: data.competitiveAlerts || prev.competitiveAlerts,
+              computeRouting: data.computeRouting || prev.computeRouting,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Detected ${data.newAlertsCount || 0} new competitor upload(s) in under-monetized sub-niches.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Competitive niche scan failed.");
+    } finally {
+      setIsScanningCompetitiveAlerts(false);
+    }
+  }
+
+  async function handleLaunchRapidMission(alertId: string) {
+    setLaunchingCompetitiveAlertId(alertId);
+    try {
+      const res = await fetch(
+        `/api/performance/competitive-alerts/${encodeURIComponent(alertId)}/launch-mission`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not launch rapid-response clipping mission.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              competitiveAlerts: data.competitiveAlerts || prev.competitiveAlerts,
+              activeMission: data.activeMission || prev.activeMission,
+              remoteBridge: data.remoteBridge || prev.remoteBridge,
+            }
+          : prev
+      );
+      setAutopilotSubTab("mission");
+      setActiveTab("autopilot");
+      showNotice("success", data.summary || "Rapid-response clipping mission launched in Autopilot.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not launch rapid-response mission.");
+    } finally {
+      setLaunchingCompetitiveAlertId(null);
+    }
+  }
+
+  async function handleDismissCompetitiveAlert(alertId: string) {
+    try {
+      const res = await fetch(`/api/performance/competitive-alerts/${encodeURIComponent(alertId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "dismissed" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not dismiss competitive alert.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, competitiveAlerts: data.competitiveAlerts || prev.competitiveAlerts } : prev
+      );
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not dismiss competitive alert.");
+    }
+  }
+
+  async function handleAddAffiliateOffer(payload: {
+    partnerName: string;
+    niche: ContentNiche;
+    offerHook: string;
+    destinationUrl: string;
+    commissionPct: number;
+    estEpcUsd: number;
+  }) {
+    try {
+      const res = await fetch("/api/monetization/affiliates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save affiliate offer.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, affiliateOffers: data.affiliateOffers || prev.affiliateOffers } : prev
+      );
+      showNotice("success", `Added affiliate partner "${payload.partnerName}".`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not save affiliate offer.");
+    }
+  }
+
+  async function handleDeleteAffiliateOffer(id: string) {
+    try {
+      const res = await fetch(`/api/monetization/affiliates/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not remove affiliate offer.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, affiliateOffers: data.affiliateOffers || prev.affiliateOffers } : prev
+      );
+      showNotice("success", "Removed affiliate offer.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not remove affiliate offer.");
+    }
+  }
+
+  async function handleAddLandingPage(payload: {
+    headline: string;
+    leadMagnetTitle: string;
+    subheadline: string;
+    ctaButtonText: string;
+    linkedAffiliateId?: string;
+    niche: ContentNiche;
+  }) {
+    try {
+      const res = await fetch("/api/monetization/landing-pages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create email capture page.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, emailLandingPages: data.emailLandingPages || prev.emailLandingPages } : prev
+      );
+      showNotice("success", `Created Email Capture Bridge page "${payload.headline}".`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not create email capture page.");
+    }
+  }
+
+  async function handleTrackAffiliateEvent(id: string, clicks: number, conversions: number) {
+    try {
+      const res = await fetch(`/api/monetization/affiliates/${encodeURIComponent(id)}/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clicks, conversions }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not record affiliate tracking event.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, affiliateOffers: data.affiliateOffers || prev.affiliateOffers } : prev
+      );
+      showNotice("success", `Logged +${clicks} click(s) and +${conversions} conversion(s) on affiliate offer.`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not record affiliate tracking event.");
+    }
+  }
+
+  async function handleUpdateLandingPage(
+    id: string,
+    patch: { active?: boolean; addVisitors?: number; addSubscribers?: number; addAffiliateClicks?: number }
+  ) {
+    try {
+      const res = await fetch(`/api/monetization/landing-pages/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update landing page.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, emailLandingPages: data.emailLandingPages || prev.emailLandingPages } : prev
+      );
+      if (typeof patch.active === "boolean") {
+        showNotice("success", patch.active ? "Landing page activated." : "Landing page paused.");
+      } else {
+        showNotice("success", "Logged live visitors & email subscriber conversions on landing page.");
+      }
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update landing page.");
+    }
+  }
+
+  async function handleRunDeepResearch(payload: {
+    query: string;
+    niche: ContentNiche | "all";
+    autoDraftCards: boolean;
+  }) {
+    setIsRunningDeepResearch(true);
+    try {
+      const res = await fetch("/api/ai/deep-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Deep multi-source research scan failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              deepResearch: data.deepResearch || prev.deepResearch,
+              researchOpportunities: data.researchOpportunities || prev.researchOpportunities,
+              computeRouting: data.computeRouting || prev.computeRouting,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        `Deep Research extracted ${data.deepResearch?.findings?.length || 0} comment & monetization insights${
+          data.draftedCount ? ` and drafted ${data.draftedCount} Opportunity card(s)` : ""
+        }.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Deep multi-source research scan failed.");
+    } finally {
+      setIsRunningDeepResearch(false);
+    }
+  }
+
+  async function handleRunAutonomousLoop(payload: { autoApplySafe: boolean; focusArea: string }) {
+    setIsRunningAutonomousLoop(true);
+    try {
+      const res = await fetch("/api/ai/autonomous-loop/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Autonomous self-learning loop failed.");
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              autonomousLedger: data.autonomousLedger || prev.autonomousLedger,
+              config: data.config || prev.config,
+              computeRouting: data.computeRouting || prev.computeRouting,
+            }
+          : prev
+      );
+      await handleRefreshTelemetry();
+      showNotice(
+        "success",
+        data.entry?.autoApplied
+          ? `Autonomous Loop completed (${data.entry.engine}) and auto-applied safe config optimization.`
+          : `Autonomous Loop recorded new experiment insight via ${data.entry?.engine || "AI Engine"}.`
+      );
+    } catch (err) {
+      await handleRefreshTelemetry();
+      showNotice("error", err instanceof Error ? err.message : "Autonomous self-learning loop failed.");
+    } finally {
+      setIsRunningAutonomousLoop(false);
+    }
+  }
+
+  async function handleGraduateToLongForm(clipId: string) {
+    try {
+      const res = await fetch("/api/monetization/long-form/graduate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not graduate short to long-form.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, longFormPipeline: data.longFormPipeline || prev.longFormPipeline } : prev
+      );
+      showNotice("success", data.summary || "Graduated winning short into 10m+ long-form blueprint.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not graduate short to long-form.");
+    }
+  }
+
+  async function handleUpdateRemoteBridge(patch: Partial<RemoteBridgeConfig>) {
+    try {
+      const res = await fetch("/api/remote-bridge/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update remote messaging config.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, remoteBridge: data.remoteBridge || prev.remoteBridge } : prev
+      );
+      showNotice("success", "Updated Discord / Telegram / WhatsApp remote bridge settings.");
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Could not update remote bridge.");
+    }
+  }
+
+  async function handleRunRemoteCommand(platform: RemoteMessagingPlatform, command: string) {
+    try {
+      const res = await fetch("/api/remote-bridge/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform, command }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Remote command execution failed.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, remoteBridge: data.remoteBridge || prev.remoteBridge } : prev
+      );
+      if (command.trim().toLowerCase().startsWith("/approve")) {
+        await loadWorkspace();
+      }
+      showNotice("success", `${platform.toUpperCase()} executed ${command}: ${data.responseSummary || "Done."}`);
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Remote command failed.");
+    }
+  }
+
+  async function handleDispatchDiscordAlert(payload: {
+    alertType: "mission-success" | "roi-surge";
+    customNote?: string;
+  }) {
+    setIsDispatchingDiscordAlert(true);
+    try {
+      const res = await fetch("/api/remote-bridge/dispatch-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Discord alert dispatch failed.");
+      setWorkspace((prev) =>
+        prev ? { ...prev, remoteBridge: data.remoteBridge || prev.remoteBridge } : prev
+      );
+      const label = payload.alertType === "mission-success" ? "Mission Success" : "ROI Surge";
+      showNotice(
+        "success",
+        data.deliveryStatus === "delivered"
+          ? `Dispatched live "${label}" alert to Discord (${data.remoteBridge?.discordChannelName || "#ai-director-alerts"}).`
+          : `Logged "${label}" Discord alert preview for ${data.remoteBridge?.discordChannelName || "#ai-director-alerts"}.`
+      );
+    } catch (err) {
+      showNotice("error", err instanceof Error ? err.message : "Discord alert dispatch failed.");
+    } finally {
+      setIsDispatchingDiscordAlert(false);
+    }
+  }
+
   async function handleUpdateComputeRouting(patch: {
     activeTier?: AiComputeTierId;
     hostingStage?: HostingStageId;
@@ -2063,60 +2477,156 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F6F7F9] dark:bg-[#0A0B0E] text-[#0F172A] dark:text-[#F1F5F9]">
-      <TopBar
+    <div className="h-screen flex overflow-hidden bg-[#F4F6F9] dark:bg-[#0A0B0E] text-[#0F172A] dark:text-[#F1F5F9]">
+      <AppShellSidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         uiMode={uiMode}
         onToggleUiMode={handleToggleUiMode}
-        isDark={isDark}
-        onToggleTheme={() => setIsDark((d) => !d)}
-        onOpenCommandBar={() => setCommandBarOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenAccount={() => setAccountOpen(true)}
-        authUser={authUser}
-        onRunPipeline={() => handleDispatchPipeline(true)}
-        isRunningPipeline={isRunningPipeline}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
         pendingCount={counts.pendingQa}
         readyCount={counts.readyToPublish}
         activeAlertCount={counts.activeAlerts}
+        channelCount={workspace?.config.channelFleet.length || 0}
       />
 
-      {notice && (
-        <div
-          role="status"
-          className={`px-4 sm:px-6 py-2 border-b text-xs flex items-center justify-between gap-3 ${
-            notice.type === "error"
-              ? "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-          }`}
-        >
-          <span className="flex items-center gap-2">
-            {notice.type === "error" ? (
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            ) : (
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-            )}
-            <span>{notice.message}</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            aria-label="Dismiss message"
-            className="opacity-70 hover:opacity-100"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TopBar
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          uiMode={uiMode}
+          onToggleUiMode={handleToggleUiMode}
+          isDark={isDark}
+          onToggleTheme={() => setIsDark((d) => !d)}
+          onOpenCommandBar={() => setCommandBarOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenAccount={() => setAccountOpen(true)}
+          onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          authUser={authUser}
+          onRunPipeline={() => handleDispatchPipeline(true)}
+          isRunningPipeline={isRunningPipeline}
+          pendingCount={counts.pendingQa}
+          readyCount={counts.readyToPublish}
+          activeAlertCount={counts.activeAlerts}
+        />
 
-      <main className="flex-1 flex flex-col min-h-0">
-        {loading || !workspace ? (
-          <div className="flex-1 flex items-center justify-center p-12 text-xs font-mono text-slate-500">
-            LOADING CLIPFORGE STUDIO...
+        {notice && (
+          <div
+            role="status"
+            className={`px-4 sm:px-6 py-2 border-b text-xs flex items-center justify-between gap-3 shrink-0 ${
+              notice.type === "error"
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              {notice.type === "error" ? (
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              )}
+              <span>{notice.message}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              aria-label="Dismiss message"
+              className="opacity-70 hover:opacity-100"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-        ) : (
+        )}
+
+        <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
+          {loading || !workspace ? (
+            <div className="flex-1 flex items-center justify-center p-12 text-xs font-mono text-slate-500">
+              LOADING CLIPFORGE STUDIO...
+            </div>
+          ) : (
           <>
+            {activeTab === "dashboard" && (
+              <StudioDashboardView
+                clips={workspace.clips}
+                config={workspace.config}
+                telemetry={workspace.telemetry || []}
+                monetizationPlan={workspace.monetizationPlan}
+                affiliateOffers={workspace.affiliateOffers || []}
+                emailLandingPages={workspace.emailLandingPages || []}
+                longFormPipeline={workspace.longFormPipeline || []}
+                revenueAlerts={workspace.revenueAlerts || []}
+                competitiveAlerts={workspace.competitiveAlerts || []}
+                autonomousLedger={workspace.autonomousLedger || []}
+                computeRouting={workspace.computeRouting}
+                isRunningAutonomousLoop={isRunningAutonomousLoop}
+                isRunningPipeline={isRunningPipeline}
+                shiftingAlertId={shiftingAlertId}
+                launchingCompetitiveAlertId={launchingCompetitiveAlertId}
+                onSelectTab={setActiveTab}
+                onOpenClipInStudio={(id) => {
+                  setSelectedClipId(id);
+                  setActiveTab("studio");
+                }}
+                onApproveClip={async (id) => {
+                  await handleUpdateClip(id, { qaStatus: "approved", publishStatus: "ready" });
+                }}
+                onShiftRevenueAlert={handleShiftAlertFocus}
+                onLaunchRapidMission={handleLaunchRapidMission}
+                onRunAutonomousLoop={handleRunAutonomousLoop}
+                onUpdateComputeTier={async (tier) => {
+                  await handleUpdateComputeRouting({ activeTier: tier });
+                }}
+                onTestLocalLlm={handleTestLocalLlm}
+                onRunPipeline={() => handleDispatchPipeline(true)}
+                onOpenComputeHub={() => {
+                  setAutopilotSubTab("compute");
+                  setActiveTab("autopilot");
+                }}
+              />
+            )}
+
+            {activeTab === "monetization" && (
+              <MonetizationHubView
+                clips={workspace.clips}
+                monetizationPlan={workspace.monetizationPlan}
+                affiliateOffers={workspace.affiliateOffers || []}
+                emailLandingPages={workspace.emailLandingPages || []}
+                longFormPipeline={workspace.longFormPipeline || []}
+                remoteBridge={workspace.remoteBridge}
+                deepResearch={workspace.deepResearch}
+                isOptimizingMonetization={isOptimizingMonetization}
+                isProjectingRevenue={isProjectingRevenue}
+                isAnalyzingFunnel={isAnalyzingFunnel}
+                isApplyingFunnelWinner={isApplyingFunnelWinner}
+                isRunningDeepResearch={isRunningDeepResearch}
+                onUpdateMonetizationPlan={handleUpdateMonetizationPlan}
+                onOptimizeMonetization={handleOptimizeMonetization}
+                onProjectRevenue={handleProjectRevenue}
+                onAddFunnelVariant={handleAddFunnelVariant}
+                onAnalyzeFunnel={handleAnalyzeFunnel}
+                onApplyFunnelWinner={handleApplyFunnelWinner}
+                onAddAffiliateOffer={handleAddAffiliateOffer}
+                onDeleteAffiliateOffer={handleDeleteAffiliateOffer}
+                onTrackAffiliateEvent={handleTrackAffiliateEvent}
+                onAddLandingPage={handleAddLandingPage}
+                onUpdateLandingPage={handleUpdateLandingPage}
+                onGraduateToLongForm={handleGraduateToLongForm}
+                onUpdateRemoteBridge={handleUpdateRemoteBridge}
+                onRunRemoteCommand={handleRunRemoteCommand}
+                onDispatchDiscordAlert={handleDispatchDiscordAlert}
+                isDispatchingDiscordAlert={isDispatchingDiscordAlert}
+                onRunDeepResearch={handleRunDeepResearch}
+                onAskAgent={async (prompt) => {
+                  setAutopilotSubTab("agent");
+                  setActiveTab("autopilot");
+                  await handleSendAgentMessage(prompt);
+                }}
+              />
+            )}
+
             {activeTab === "studio" && (
               <VerticalStudioView
                 clips={workspace.clips}
@@ -2173,6 +2683,7 @@ export default function App() {
                 onScanRadar={handleScanRadar}
                 onRunResearch={handleRunResearch}
                 onRunOpportunityDiscovery={handleRunOpportunityDiscovery}
+                onRunCompetitorGapScan={handleRunCompetitorGapScan}
                 onCreateClipFromDiscoveredTopic={handleCreateClipFromDiscoveredTopic}
                 onSaveDiscoveredTopicToResearch={handleSaveDiscoveredTopicToResearch}
                 onUpdateKnowledgeConfig={handleUpdateKnowledgeConfig}
@@ -2300,6 +2811,11 @@ export default function App() {
                 knowledgeAcquisition={workspace.knowledgeAcquisition}
                 platformExpansion={workspace.platformExpansion}
                 computeRouting={workspace.computeRouting}
+                clips={workspace.clips}
+                affiliateOffers={workspace.affiliateOffers || []}
+                emailLandingPages={workspace.emailLandingPages || []}
+                longFormPipeline={workspace.longFormPipeline || []}
+                remoteBridge={workspace.remoteBridge}
                 initialSubTab={autopilotSubTab}
                 isStartingMission={isStartingMission}
                 isAdvancingMission={isAdvancingMission}
@@ -2352,6 +2868,12 @@ export default function App() {
                 onAnalyzeCompetitor={handleAnalyzeCompetitor}
                 onTestLocalLlm={handleTestLocalLlm}
                 onFetchWorkerPack={handleFetchWorkerPack}
+                onAddAffiliateOffer={handleAddAffiliateOffer}
+                onDeleteAffiliateOffer={handleDeleteAffiliateOffer}
+                onAddLandingPage={handleAddLandingPage}
+                onGraduateToLongForm={handleGraduateToLongForm}
+                onUpdateRemoteBridge={handleUpdateRemoteBridge}
+                onRunRemoteCommand={handleRunRemoteCommand}
               />
             )}
 
@@ -2361,8 +2883,11 @@ export default function App() {
                 config={workspace.config}
                 uiMode={uiMode}
                 monetizationPlan={workspace.monetizationPlan}
+                affiliateOffers={workspace.affiliateOffers || []}
+                emailLandingPages={workspace.emailLandingPages || []}
                 abTestAnalysis={workspace.abTestAnalysis}
                 revenueAlerts={workspace.revenueAlerts || []}
+                competitiveAlerts={workspace.competitiveAlerts || []}
                 viralSentiment={workspace.viralSentiment}
                 isScanningSentiment={isScanningSentiment}
                 isApplyingSentiment={isApplyingSentiment}
@@ -2370,6 +2895,8 @@ export default function App() {
                 isBakingWinner={isBakingWinner}
                 isScanningAlerts={isScanningAlerts}
                 shiftingAlertId={shiftingAlertId}
+                isScanningCompetitiveAlerts={isScanningCompetitiveAlerts}
+                launchingCompetitiveAlertId={launchingCompetitiveAlertId}
                 isGeneratingSeoFor={isGeneratingSeoFor}
                 onGenerateSeo={handleGenerateSeo}
                 onScanViralSentiment={handleScanViralSentiment}
@@ -2380,6 +2907,9 @@ export default function App() {
                 onScanRevenueAlerts={handleScanRevenueAlerts}
                 onShiftAlertFocus={handleShiftAlertFocus}
                 onDismissRevenueAlert={handleDismissRevenueAlert}
+                onScanCompetitiveAlerts={handleScanCompetitiveAlerts}
+                onLaunchRapidMission={handleLaunchRapidMission}
+                onDismissCompetitiveAlert={handleDismissCompetitiveAlert}
                 onOpenInStudio={(id) => {
                   setSelectedClipId(id);
                   setActiveTab("studio");
@@ -2400,8 +2930,7 @@ export default function App() {
                   });
                 }}
                 onOpenMonetizationHub={() => {
-                  setAutopilotSubTab("monetization");
-                  setActiveTab("autopilot");
+                  setActiveTab("monetization");
                 }}
               />
             )}
@@ -2424,13 +2953,18 @@ export default function App() {
                 clips={workspace.clips}
                 config={workspace.config}
                 telemetry={workspace.telemetry || []}
+                affiliateCount={(workspace.affiliateOffers || []).length}
+                landingPageCount={(workspace.emailLandingPages || []).length}
+                longFormCount={(workspace.longFormPipeline || []).length}
+                activeAlertCount={counts.activeAlerts}
                 onJumpToTab={setActiveTab}
                 onOpenSettings={() => setSettingsOpen(true)}
               />
             )}
           </>
         )}
-      </main>
+        </main>
+      </div>
 
       <AiCommandBar
         open={commandBarOpen}

@@ -13,6 +13,16 @@ import {
   buildSeedRevenueAlerts,
   registerSuiteRoutes,
 } from "./src/server/suiteRoutes.ts";
+import {
+  buildSeedAffiliateOffers,
+  buildSeedAutonomousLedger,
+  buildSeedCompetitiveAlerts,
+  buildSeedDeepResearch,
+  buildSeedEmailLandingPages,
+  buildSeedLongFormPipeline,
+  buildSeedRemoteBridge,
+  registerGrowthSuiteRoutes,
+} from "./src/server/growthSuiteRoutes.ts";
 import type {
   AbTestAnalysisSnapshot,
   AbTestRecommendedDefaults,
@@ -1064,6 +1074,13 @@ function buildSeedWorkspace(): WorkspaceState {
     agentMessages: buildSeedAgentMessages(),
     researchOpportunities: buildSeedResearchOpportunities(),
     opportunityDiscovery: buildSeedOpportunityDiscovery(),
+    competitiveAlerts: buildSeedCompetitiveAlerts(),
+    affiliateOffers: buildSeedAffiliateOffers(),
+    emailLandingPages: buildSeedEmailLandingPages(),
+    longFormPipeline: buildSeedLongFormPipeline(),
+    remoteBridge: buildSeedRemoteBridge(),
+    deepResearch: buildSeedDeepResearch(),
+    autonomousLedger: buildSeedAutonomousLedger(),
     industryNews: buildSeedIndustryNews(),
     viralSentiment: buildSeedViralSentiment(),
     assetDiscovery: buildSeedAssetDiscovery(),
@@ -2076,6 +2093,27 @@ function readWorkspace(): WorkspaceState {
   }
   if (!parsed.opportunityDiscovery) {
     parsed.opportunityDiscovery = buildSeedOpportunityDiscovery();
+  }
+  if (!Array.isArray(parsed.competitiveAlerts)) {
+    parsed.competitiveAlerts = buildSeedCompetitiveAlerts();
+  }
+  if (!Array.isArray(parsed.affiliateOffers)) {
+    parsed.affiliateOffers = buildSeedAffiliateOffers();
+  }
+  if (!Array.isArray(parsed.emailLandingPages)) {
+    parsed.emailLandingPages = buildSeedEmailLandingPages();
+  }
+  if (!Array.isArray(parsed.longFormPipeline)) {
+    parsed.longFormPipeline = buildSeedLongFormPipeline();
+  }
+  if (!parsed.remoteBridge) {
+    parsed.remoteBridge = buildSeedRemoteBridge();
+  }
+  if (!parsed.deepResearch) {
+    parsed.deepResearch = buildSeedDeepResearch();
+  }
+  if (!Array.isArray(parsed.autonomousLedger)) {
+    parsed.autonomousLedger = buildSeedAutonomousLedger();
   }
   if (!parsed.industryNews) {
     parsed.industryNews = buildSeedIndustryNews();
@@ -9400,7 +9438,7 @@ Return exactly 4 variants ("var_a", "var_b", "var_c", "var_d") where exactly ONE
     }
   }, 5 * 60 * 1000);
 
-  registerSuiteRoutes(app, {
+  const suiteDeps = {
     dataDir: DATA_DIR,
     pipelineConfigFile: PIPELINE_CONFIG_FILE,
     getAiClient,
@@ -9408,7 +9446,9 @@ Return exactly 4 variants ("var_a", "var_b", "var_c", "var_d") where exactly ONE
     saveWorkspace,
     pushTelemetry,
     formatApiError,
-  });
+  };
+  registerSuiteRoutes(app, suiteDeps);
+  registerGrowthSuiteRoutes(app, suiteDeps);
 
   if (process.env.NODE_ENV === "production") {
     const distDir = path.join(ROOT_DIR, "dist");

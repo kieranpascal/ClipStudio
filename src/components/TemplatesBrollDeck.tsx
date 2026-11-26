@@ -28,6 +28,7 @@ import type {
   SfxKind,
 } from "../types";
 import { previewSfxSound } from "../utils/ffmpeg";
+import { AssetAlignmentModule } from "./AssetAlignmentModule";
 
 interface TemplatesBrollDeckProps {
   clips: ClipItem[];
@@ -790,6 +791,18 @@ export function TemplatesBrollDeck({
               {ctrA.score >= ctrB.score ? `Variant A tip: ${ctrA.note}` : `Variant B tip: ${ctrB.note}`}
             </p>
           </section>
+
+          {/* Asset Alignment Module: 30-Day Moving Average Hook/Pacing Dip Detector & B-Roll Recommender */}
+          <div className="p-5 border-b border-[#D9DEE7] dark:border-[#222631]">
+            <AssetAlignmentModule
+              clips={clips}
+              activeClip={clip}
+              savedAssets={savedAssets}
+              discoveredAssets={discoveredAssets}
+              onUpdateClip={onUpdateClip}
+              onOpenAssetDiscovery={onOpenAssetDiscovery}
+            />
+          </div>
 
           {/* AI B-Roll & Cutaway Cue Sheet + Auto-Inject Discovered Assets */}
           <section className="p-5 space-y-3">

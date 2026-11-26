@@ -71,6 +71,12 @@ interface IngestDeckProps {
     freshness: OpportunityGapFreshness;
     customQuery?: string;
   }) => Promise<void>;
+  onRunCompetitorGapScan?: (payload: {
+    niche: ContentNiche | "all";
+    freshness: OpportunityGapFreshness;
+    competitorChannels: string[];
+    customQuery?: string;
+  }) => Promise<void>;
   onCreateClipFromDiscoveredTopic?: (topic: OpportunityGapTopic) => Promise<void>;
   onSaveDiscoveredTopicToResearch?: (topicId: string) => Promise<void>;
   onUpdateKnowledgeConfig?: (patch: {
@@ -149,6 +155,7 @@ export function IngestDeck({
   onScanRadar,
   onRunResearch,
   onRunOpportunityDiscovery,
+  onRunCompetitorGapScan,
   onCreateClipFromDiscoveredTopic,
   onSaveDiscoveredTopicToResearch,
   onUpdateKnowledgeConfig,
@@ -445,6 +452,7 @@ export function IngestDeck({
               await onRunOpportunityDiscovery(payload);
             }
           }}
+          onRunCompetitorGapScan={onRunCompetitorGapScan}
           onCreateClipFromTopic={async (topic) => {
             if (onCreateClipFromDiscoveredTopic) {
               await onCreateClipFromDiscoveredTopic(topic);
